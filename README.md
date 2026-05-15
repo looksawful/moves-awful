@@ -32,8 +32,7 @@ vanilla canvas animations with images and labels
 
 ## Links
 
-- [Preview](https://url)
-- [CodePen](https://url)
+- [Preview](https://looksawful.github.io/moves-awful/)
 
 ## Getting started
 

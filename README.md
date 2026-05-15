@@ -37,6 +37,8 @@ vanilla canvas animations with images and labels
 ## Getting started
 
 ```bash
+git clone https://github.com/looksawful/moves-awful.git
+cd moves-awful
 npm install
-npm run dev
+npm run dev -o
 ```

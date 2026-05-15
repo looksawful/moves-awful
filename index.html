@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Animation check</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main>
+      <section aria-labelledby="arc-title">
+        <h2 id="arc-title">Arc</h2>
+        <div class="animation-cell arc-cell">
+          <canvas id="arc"></canvas>
+        </div>
+      </section>
+
+      <section aria-labelledby="spiral-title">
+        <h2 id="spiral-title">Spiral</h2>
+        <div class="animation-cell spiral-cell">
+          <canvas id="spiral"></canvas>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      import { mountArc } from "./canvas-animations/arc.js";
+      import { mountSpiral } from "./canvas-animations/spiral.js";
+
+      const disposers = [mountArc("arc"), mountSpiral("spiral")];
+
+      if (import.meta.hot) {
+        import.meta.hot.dispose(async () => {
+          const mounted = await Promise.all(disposers);
+          mounted.forEach((dispose) => dispose());
+        });
+      }
+    </script>
+  </body>
+</html>

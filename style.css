@@ -1,0 +1,42 @@
+* {
+  box-sizing: border-box;
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 0 48px;
+}
+
+section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.animation-cell {
+  flex: none;
+  overflow: hidden;
+  background: #000000;
+}
+
+.arc-cell {
+  width: clamp(768px, 100vw, 1280px);
+  height: clamp(516px, 67.1875vw, 860px);
+}
+
+.spiral-cell {
+  width: clamp(369px, 100vw, 672px);
+  height: clamp(369px, 100vw, 672px);
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

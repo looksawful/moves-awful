@@ -94,15 +94,8 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   const win = globalThis.window;
   const motionQuery = win?.matchMedia?.("(prefers-reduced-motion: reduce)");
 
-  const resize = () => resizeCanvasToDisplaySize(canvas, ctx);
-
-  const frame = (time = 0) => {
-    if (disposed || !running) {
-      return;
-    }
-
-    resize();
-
+  const render = (time = 0) => {
+    resizeCanvasToDisplaySize(canvas, ctx);
     renderFrame({
       canvas,
       ctx,
@@ -111,7 +104,29 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
       height: canvas.clientHeight || 0,
       reducedMotion,
     });
+  };
 
+  const resize = () => {
+    const changed = resizeCanvasToDisplaySize(canvas, ctx);
+
+    if (changed && reducedMotion && !doc?.hidden && !disposed) {
+      renderFrame({
+        canvas,
+        ctx,
+        time: 0,
+        width: canvas.clientWidth || 0,
+        height: canvas.clientHeight || 0,
+        reducedMotion,
+      });
+    }
+  };
+
+  const frame = (time = 0) => {
+    if (disposed || !running) {
+      return;
+    }
+
+    render(time);
     frameId = globalThis.requestAnimationFrame(frame);
   };
 
@@ -133,23 +148,33 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
     }
   };
 
-  const handleVisibilityChange = () => {
-    if (doc?.hidden) {
+  const syncActivity = () => {
+    if (disposed || doc?.hidden) {
       stop();
       return;
     }
 
-    resize();
+    if (reducedMotion) {
+      stop();
+      render(0);
+      return;
+    }
+
     start();
+  };
+
+  const handleVisibilityChange = () => {
+    syncActivity();
   };
 
   const handleMotionChange = () => {
     reducedMotion = Boolean(motionQuery?.matches);
+    syncActivity();
   };
 
   const resizeObserver = globalThis.ResizeObserver ? new globalThis.ResizeObserver(resize) : null;
 
-  handleMotionChange();
+  reducedMotion = Boolean(motionQuery?.matches);
   resize();
   resizeObserver?.observe(canvas);
   win?.addEventListener?.("resize", resize);
@@ -184,7 +209,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   };
 
   activeAnimations.set(key, dispose);
-  start();
+  syncActivity();
 
   return dispose;
 };

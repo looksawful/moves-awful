@@ -1,0 +1,100 @@
+name: Apply viewport gating
+
+on:
+  push:
+    branches: [temp-dependency-refresh]
+    paths:
+      - .github/workflows/apply-viewport-gating.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: temp-dependency-refresh
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Apply focused lifecycle change
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          for filename in ("canvas-animations/arc.js", "canvas-animations/spiral.js"):
+              path = Path(filename)
+              text = path.read_text(encoding="utf-8")
+              label = path.stem
+
+              text = replace_once(
+                  text,
+                  "  let reducedMotion = false;\n\n  const doc = globalThis.document;",
+                  "  let reducedMotion = false;\n  let viewportActive = typeof globalThis.IntersectionObserver !== \"function\";\n\n  const doc = globalThis.document;",
+                  f"{label} viewport state",
+              )
+              text = replace_once(
+                  text,
+                  "    if (changed && reducedMotion && !doc?.hidden && !disposed) {",
+                  "    if (changed && reducedMotion && viewportActive && !doc?.hidden && !disposed) {",
+                  f"{label} static resize gate",
+              )
+              text = replace_once(
+                  text,
+                  "    if (disposed || doc?.hidden) {",
+                  "    if (disposed || doc?.hidden || !viewportActive) {",
+                  f"{label} activity gate",
+              )
+              text = replace_once(
+                  text,
+                  "  const resizeObserver = globalThis.ResizeObserver ? new globalThis.ResizeObserver(resize) : null;\n\n  reducedMotion = Boolean(motionQuery?.matches);",
+                  "  const resizeObserver = globalThis.ResizeObserver ? new globalThis.ResizeObserver(resize) : null;\n  const viewportObserver = globalThis.IntersectionObserver\n    ? new globalThis.IntersectionObserver(\n        ([entry]) => {\n          viewportActive = Boolean(entry?.isIntersecting);\n          syncActivity();\n        },\n        { rootMargin: \"50% 0px\", threshold: 0 },\n      )\n    : null;\n\n  reducedMotion = Boolean(motionQuery?.matches);",
+                  f"{label} observer",
+              )
+              text = replace_once(
+                  text,
+                  "  resizeObserver?.observe(canvas);\n  win?.addEventListener?.(\"resize\", resize);",
+                  "  resizeObserver?.observe(canvas);\n  viewportObserver?.observe(canvas);\n  win?.addEventListener?.(\"resize\", resize);",
+                  f"{label} observer mount",
+              )
+              text = replace_once(
+                  text,
+                  "    resizeObserver?.disconnect();\n    win?.removeEventListener?.(\"resize\", resize);",
+                  "    resizeObserver?.disconnect();\n    viewportObserver?.disconnect();\n    win?.removeEventListener?.(\"resize\", resize);",
+                  f"{label} observer dispose",
+              )
+
+              path.write_text(text, encoding="utf-8")
+
+      - name: Verify
+        run: |
+          npm audit --audit-level=high
+          npm run check
+          npm test
+          npm run build
+
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add canvas-animations/arc.js canvas-animations/spiral.js
+          git diff --cached --quiet && exit 1
+          git commit -m "perf: gate canvas RAF by viewport proximity"
+          git push origin HEAD:temp-dependency-refresh

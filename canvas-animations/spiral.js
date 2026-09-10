@@ -17,6 +17,14 @@ const spiralCoverUrls = [
   new URL("./assets/spiral/khity-russian.webp", import.meta.url).href,
 ];
 
+const normalizeItems = (items) =>
+  items
+    .filter((item) => item?.src)
+    .map((item) => ({
+      imageUrl: String(item.src),
+      title: item.title == null ? "" : String(item.title),
+    }));
+
 const config = {
   speed: 0.00004,
   turns: 1.5,
@@ -256,17 +264,22 @@ const loadImage = (imageUrl) => {
   return request;
 };
 
-const loadCoverImages = async (coverUrls) =>
+const loadCoverImages = async (items) =>
   Promise.all(
-    coverUrls.map(async (imageUrl) => {
+    items.map(async (item) => {
+      const imageUrl = typeof item === "string" ? item : item.imageUrl;
+      const metadata = typeof item === "string" ? {} : item;
+
       try {
         return {
+          ...metadata,
           imageUrl,
           imageElement: await loadImage(imageUrl),
           imageLoadError: null,
         };
       } catch (error) {
         return {
+          ...metadata,
           imageUrl,
           imageElement: null,
           imageLoadError: error,
@@ -355,7 +368,7 @@ const renderSpiral = ({ ctx, images, time, width, height, reducedMotion }) => {
   ctx.globalAlpha = 1;
 };
 
-export const mountSpiral = async (canvasId = "spiral-container") => {
+export const mountSpiral = async (canvasId = "spiral-container", options = {}) => {
   const canvas = document.getElementById(canvasId);
   const ctx = canvas?.getContext?.("2d");
 
@@ -371,7 +384,8 @@ export const mountSpiral = async (canvasId = "spiral-container") => {
 
   const key = getAnimationKey(canvasId);
   const mountToken = beginMount(key);
-  const images = await loadCoverImages(spiralCoverUrls);
+  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : spiralCoverUrls;
+  const images = await loadCoverImages(sourceItems);
 
   if (!isCurrentMount(key, mountToken)) {
     return noop;

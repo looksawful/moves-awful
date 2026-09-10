@@ -141,6 +141,15 @@ const arcItems = [
     title: "Звуки для скрэтча",
   },
 ];
+
+const normalizeItems = (items) =>
+  items
+    .filter((item) => item?.src)
+    .map((item) => ({
+      imageUrl: String(item.src),
+      title: item.title == null ? "" : String(item.title),
+    }));
+
 const config = {
   slots: 10,
   speed: 0.00005,
@@ -594,7 +603,7 @@ const injectStyles = (() => {
   };
 })();
 
-export const mountArc = async (canvasId = "arc-container") => {
+export const mountArc = async (canvasId = "arc-container", options = {}) => {
   injectStyles();
   const canvas = document.getElementById(canvasId);
 
@@ -616,7 +625,8 @@ export const mountArc = async (canvasId = "arc-container") => {
 
   await loadTitleFont(titleStyle);
 
-  const items = await loadImages(arcItems);
+  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;
+  const items = await loadImages(sourceItems);
 
   if (!isCurrentMount(key, mountToken)) {
     return noop;

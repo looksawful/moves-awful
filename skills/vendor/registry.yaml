@@ -1,0 +1,29 @@
+version: 1
+install_root: .agents/vendor
+policy:
+  local_rules: AGENTS.md + .agents/skills/moves-canvas-runtime/SKILL.md + .agents/skills/moves-verification/SKILL.md
+  precedence: local_rules_over_vendor
+  install_on_demand: true
+  commit_installed_vendor_copies: false
+
+skills:
+  - name: optimize-web-animations
+    catalog_id: MengTo/Skills:optimize-web-animations
+    repo: https://github.com/MengTo/Skills.git
+    source_path: agent-skills/codex/optimize-web-animations
+    use_for: [raf, canvas-performance, offscreen-work, lifecycle-cleanup, reduced-motion]
+    guardrail: Preserve MOVES AWFUL visual contracts and use this as performance guidance, not authority over repository-local lifecycle rules.
+
+  - name: accessibility
+    catalog_id: addyosmani/web-quality-skills:accessibility
+    repo: https://github.com/addyosmani/web-quality-skills.git
+    source_path: skills/accessibility
+    use_for: [wcag, keyboard, reduced-motion, accessible-fallbacks, interaction-audit]
+    guardrail: Apply WCAG guidance to the actual Canvas/demo contract; do not invent essential content or product semantics that MOVES AWFUL does not own.
+
+  - name: typescript
+    catalog_id: lobehub/lobehub:typescript
+    repo: https://github.com/lobehub/lobehub.git
+    source_path: .agents/skills/typescript
+    use_for: [typescript-port, strict-types, public-api-contracts, react-adapter-types]
+    guardrail: Use strict type-safety principles only. LobeHub-specific application, React, database, Ant Design, or repository conventions do not apply.

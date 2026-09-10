@@ -16,9 +16,13 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 - `gh-pages` is publication state. Do not treat it as a stale feature branch.
 - `index.html` is the preview/mount harness, not a product application shell.
 - `canvas-animations/arc.js` and `canvas-animations/spiral.js` are independent modules with explicit mount/dispose lifecycle.
+- A new mount attempt owns the animation/canvas key immediately: it must invalidate an older active or pending lifecycle even when the new Canvas is missing or has no 2D context.
+- Caller-provided `{ src, title? }` items replace the built-in demo dataset when supplied.
+- Runtime state is caller-observable through `canvas.dataset.galleryState`: `loading`, then `ready` when at least one image is renderable, or `error` when none is renderable.
 - Assets belong under `canvas-animations/assets/<animation>/` and should be referenced with `new URL(..., import.meta.url)` so Vite can resolve them.
-- Preserve HMR cleanup, resize cleanup, visibility handling, image-cache behavior and disposal when changing runtime code.
-- Preserve `prefers-reduced-motion` behavior. Improvements are welcome only when they remain deterministic and verified.
+- Preserve HMR cleanup, resize cleanup, visibility handling, viewport gating, image-cache behavior and disposal when changing runtime code.
+- Preserve `prefers-reduced-motion`: static reduced-motion rendering must not keep a perpetual RAF loop alive.
+- Library runtime must not inject global host-page CSS. Demo-only presentation belongs in `style.css`; reusable Arc label defaults/overrides belong to the renderer/CSS-variable contract.
 - Do not introduce a framework, TypeScript migration, state library, generic animation engine or shared abstraction as incidental cleanup.
 - Do not change visual parameters, labels or asset selection unless the task requires a visual change.
 
@@ -37,13 +41,15 @@ For ordinary source changes run, when the environment supports them:
 
 ```bash
 npm ci
+npm audit --audit-level=high
 npm run check
+npm test
 npm run build
 ```
 
-There is currently no dedicated unit/browser test suite, linter or typecheck. Never describe nonexistent checks as passing.
+The repository has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state and structural demo contracts. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
 
-For visual/runtime changes, also verify the public or local preview in a browser at representative Arc and Spiral sizes and check console errors, resizing, tab visibility changes and reduced-motion behavior.
+For visual/runtime changes, also verify the public or local preview in a browser at representative Arc and Spiral sizes and check console errors, resizing, tab visibility changes, viewport entry/exit and reduced-motion behavior. If browser execution is unavailable, record that evidence boundary explicitly rather than substituting build success.
 
 If a required verification cannot run, record the exact blocker instead of substituting source inspection for runtime evidence.
 

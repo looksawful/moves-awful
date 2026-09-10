@@ -11,6 +11,8 @@ dist
 dist-ssr
 *.local
 
+.agents/vendor/
+
 .vscode/*
 !.vscode/extensions.json
 .idea

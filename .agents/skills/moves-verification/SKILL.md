@@ -15,7 +15,7 @@ For JavaScript, test-source or workflow changes:
 npm run check
 ```
 
-This syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file. It also runs the workflow-policy checker against checked-in `.github/workflows/*.yml` / `*.yaml` files.
+This syntax-checks both Canvas modules, repository helper scripts and all `.mjs` sources under `tests/` recursively, including `tests/helpers/`. It also runs the workflow-policy checker against checked-in `.github/workflows/*.yml` / `*.yaml` files.
 
 Ordinary verification workflows must remain read-only: no `*: write`, no `permissions: write-all`, and no `git push`. Purpose-specific mutation is allowlisted only for exact filenames `deploy.yml`, `deploy.yaml`, `release.yml`, and `release.yaml`; expanding that list is a deliberate policy change that requires tests.
 
@@ -39,6 +39,8 @@ The dependency-free Node suite currently covers the modeled contracts for:
 - Arc host-style isolation;
 - structural accessibility/responsive requirements of the demo;
 - workflow-policy acceptance/rejection fixtures.
+
+Canvas suites share fake browser/Canvas plumbing through `tests/helpers/canvas-environment.mjs`, while scenario assertions remain in focused test files. Keep that helper test-only; do not use it as a template for a production runtime abstraction.
 
 These tests exercise controlled substitutes or source fixtures. They prove the represented ownership/state/policy contracts, not actual pixels, layout rendering or browser performance.
 

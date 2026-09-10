@@ -13,6 +13,8 @@ The repository currently contains two independent Canvas 2D animation modules:
 
 Both modules keep bundled demo media but can also accept caller-provided `{ src, title? }` items. This remains an intentionally small Vite project: no framework, TypeScript layer, runtime state library or component system is required by the current Vanilla path.
 
+The compact supported consumer API is defined in [`docs/public-contract.md`](docs/public-contract.md). Future TypeScript/React work should consume that contract rather than infer public API from internal renderer constants.
+
 ## Runtime contract
 
 Each module owns its animation lifecycle and currently provides:
@@ -21,12 +23,14 @@ Each module owns its animation lifecycle and currently provides:
 - stale async mount protection, including invalid replacement mounts;
 - image loading with URL-level promise caching and placeholder fallback for partial failures;
 - observable `loading`, `ready` and `error` state through `canvas.dataset.galleryState`;
-- DPR-aware Canvas sizing;
+- DPR-aware Canvas sizing with optional `maxDpr` backing-store cap;
 - `requestAnimationFrame` ownership and cleanup;
 - pause/resume behavior for document visibility;
 - static rendering without perpetual RAF work under `prefers-reduced-motion`;
 - `IntersectionObserver` gating so continuous RAF work stops away from the viewport, with a no-observer fallback;
 - explicit disposal and Vite HMR cleanup.
+
+`maxDpr` is opt-in. Omitting it preserves the current device-DPR behavior; a finite positive value caps backing-store DPR while never lowering effective DPR below `1`. Invalid values are ignored. No lower default DPR cap is selected yet because that decision remains browser-evidence-gated under #5.
 
 The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc uses the same Inter / 500 / white fallback previously used by the demo runtime.
 
@@ -57,7 +61,31 @@ tests/
 
 The Canvas behavioral suites share only test-environment plumbing through `tests/helpers/canvas-environment.mjs`. Scenario assertions stay in focused test files; this helper is not a production runtime abstraction.
 
-## Arc configuration
+## Mount options
+
+Both public variants accept:
+
+```js
+{
+  items?: Array<{ src: string, title?: string }>,
+  maxDpr?: number
+}
+```
+
+Example:
+
+```js
+const dispose = await mountArc("arc", {
+  items: [{ src: "/cover.webp", title: "Example" }],
+  maxDpr: 1.5,
+});
+```
+
+See [`docs/public-contract.md`](docs/public-contract.md) for lifecycle, state, validation and DPR semantics.
+
+## Arc authored parameters
+
+These values describe the current internal renderer tuning; they are not implied mount-option keys.
 
 | Parameter | Description |
 | --- | --- |
@@ -74,7 +102,9 @@ The Canvas behavioral suites share only test-environment plumbing through `tests
 | `edgeFadeStart` | edge fade start in normalized space |
 | `edgeFadePower` | edge fade strength |
 
-## Spiral configuration
+## Spiral authored parameters
+
+These values describe the current internal renderer tuning; they are not implied mount-option keys.
 
 | Parameter | Description |
 | --- | --- |
@@ -102,7 +132,7 @@ npm test
 npm run build
 ```
 
-`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
+`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, DPR option semantics, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
 
 CI also runs `npm audit --audit-level=high` after a clean install.
 
@@ -118,7 +148,7 @@ Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills
 
 ## Next-stage priorities
 
-1. Continue #5 by evaluating the remaining portable production-site capabilities with browser evidence: DPR policy and the Horizontal, Diagonal, Showcase Diagonal and Masonry variants.
-2. Complete #6 only after the Vanilla contracts stay stable: strict TypeScript core with a verified Vanilla adapter.
+1. Continue #5 by collecting real-browser evidence before selecting any lower default DPR cap and by evaluating Horizontal, Diagonal, Showcase Diagonal and Masonry individually.
+2. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter.
 3. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.
 4. Complete #4 by making the `master` → `gh-pages` publication path reproducible and traceable to a source SHA.

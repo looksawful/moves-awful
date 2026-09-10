@@ -141,7 +141,6 @@ const arcItems = [
     title: "Звуки для скрэтча",
   },
 ];
-1;
 const config = {
   slots: 10,
   speed: 0.00005,

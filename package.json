@@ -13,6 +13,6 @@
     "skills:install": "node scripts/install-vendor-skills.mjs"
   },
   "devDependencies": {
-    "vite": "^8.0.12"
+    "vite": "^8.2.2"
   }
 }

@@ -23,6 +23,8 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 - Preserve HMR cleanup, resize cleanup, visibility handling, viewport gating, image-cache behavior and disposal when changing runtime code.
 - Preserve `prefers-reduced-motion`: static reduced-motion rendering must not keep a perpetual RAF loop alive.
 - Library runtime must not inject global host-page CSS. Demo-only presentation belongs in `style.css`; reusable Arc label defaults/overrides belong to the renderer/CSS-variable contract.
+- Ordinary verification workflows are read-only. They must not request `*: write`, use `permissions: write-all`, or run `git push`.
+- Purpose-specific mutation is allowed only through explicitly named `deploy.yml`, `deploy.yaml`, `release.yml`, or `release.yaml` workflows; adding another mutating workflow requires changing and testing the policy deliberately.
 - Do not introduce a framework, TypeScript migration, state library, generic animation engine or shared abstraction as incidental cleanup.
 - Do not change visual parameters, labels or asset selection unless the task requires a visual change.
 
@@ -47,7 +49,7 @@ npm test
 npm run build
 ```
 
-The repository has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state and structural demo contracts. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
+`npm run check` includes source/test syntax coverage and the checked-in GitHub Actions workflow policy. The repository also has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state, structural demo contracts and workflow-policy fixtures. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
 
 For visual/runtime changes, also verify the public or local preview in a browser at representative Arc and Spiral sizes and check console errors, resizing, tab visibility changes, viewport entry/exit and reduced-motion behavior. If browser execution is unavailable, record that evidence boundary explicitly rather than substituting build success.
 

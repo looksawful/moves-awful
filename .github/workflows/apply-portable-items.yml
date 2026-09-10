@@ -1,0 +1,103 @@
+name: Apply portable item API
+
+on:
+  push:
+    branches: [temp-dependency-refresh]
+    paths:
+      - .github/workflows/apply-portable-items.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: temp-dependency-refresh
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Apply focused refactor
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              return text.replace(old, new, 1)
+
+          arc_path = Path("canvas-animations/arc.js")
+          arc = arc_path.read_text(encoding="utf-8")
+          arc = replace_once(
+              arc,
+              "];\nconst config = {",
+              "];\n\nconst normalizeItems = (items) =>\n  items\n    .filter((item) => item?.src)\n    .map((item) => ({\n      imageUrl: String(item.src),\n      title: item.title == null ? \"\" : String(item.title),\n    }));\n\nconst config = {",
+              "arc normalizeItems",
+          )
+          arc = replace_once(
+              arc,
+              'export const mountArc = async (canvasId = "arc-container") => {',
+              'export const mountArc = async (canvasId = "arc-container", options = {}) => {',
+              "arc signature",
+          )
+          arc = replace_once(
+              arc,
+              "  const items = await loadImages(arcItems);",
+              "  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;\n  const items = await loadImages(sourceItems);",
+              "arc source items",
+          )
+          arc_path.write_text(arc, encoding="utf-8")
+
+          spiral_path = Path("canvas-animations/spiral.js")
+          spiral = spiral_path.read_text(encoding="utf-8")
+          spiral = replace_once(
+              spiral,
+              "];\n\nconst config = {",
+              "];\n\nconst normalizeItems = (items) =>\n  items\n    .filter((item) => item?.src)\n    .map((item) => ({\n      imageUrl: String(item.src),\n      title: item.title == null ? \"\" : String(item.title),\n    }));\n\nconst config = {",
+              "spiral normalizeItems",
+          )
+          old_loader = '''const loadCoverImages = async (coverUrls) =>\n  Promise.all(\n    coverUrls.map(async (imageUrl) => {\n      try {\n        return {\n          imageUrl,\n          imageElement: await loadImage(imageUrl),\n          imageLoadError: null,\n        };\n      } catch (error) {\n        return {\n          imageUrl,\n          imageElement: null,\n          imageLoadError: error,\n        };\n      }\n    }),\n  );'''
+          new_loader = '''const loadCoverImages = async (items) =>\n  Promise.all(\n    items.map(async (item) => {\n      const imageUrl = typeof item === "string" ? item : item.imageUrl;\n      const metadata = typeof item === "string" ? {} : item;\n\n      try {\n        return {\n          ...metadata,\n          imageUrl,\n          imageElement: await loadImage(imageUrl),\n          imageLoadError: null,\n        };\n      } catch (error) {\n        return {\n          ...metadata,\n          imageUrl,\n          imageElement: null,\n          imageLoadError: error,\n        };\n      }\n    }),\n  );'''
+          spiral = replace_once(spiral, old_loader, new_loader, "spiral loader")
+          spiral = replace_once(
+              spiral,
+              'export const mountSpiral = async (canvasId = "spiral-container") => {',
+              'export const mountSpiral = async (canvasId = "spiral-container", options = {}) => {',
+              "spiral signature",
+          )
+          spiral = replace_once(
+              spiral,
+              "  const images = await loadCoverImages(spiralCoverUrls);",
+              "  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : spiralCoverUrls;\n  const images = await loadCoverImages(sourceItems);",
+              "spiral source items",
+          )
+          spiral_path.write_text(spiral, encoding="utf-8")
+
+      - name: Verify
+        run: |
+          npm audit --audit-level=high
+          npm run check
+          npm test
+          npm run build
+
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add canvas-animations/arc.js canvas-animations/spiral.js
+          git diff --cached --quiet && exit 1
+          git commit -m "feat: accept portable gallery items"
+          git push origin HEAD:temp-dependency-refresh

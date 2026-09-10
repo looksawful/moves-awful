@@ -28,6 +28,9 @@ const getPermissionsHeader = (line) => {
   };
 };
 
+const hasInlineWritePermission = (value) =>
+  /^\{.*(?:^|[,\s])?[A-Za-z0-9_-]+\s*:\s*write(?:\s*[,}]|\s*$)/i.test(value);
+
 export const validateWorkflowSource = (workflowPath, source) => {
   const workflowName = basename(workflowPath);
 
@@ -52,6 +55,10 @@ export const validateWorkflowSource = (workflowPath, source) => {
       if (permissionsHeader.value === "write-all") {
         violations.push(
           `${workflowName}:${index + 1} ordinary verification workflows cannot use permissions: write-all`,
+        );
+      } else if (hasInlineWritePermission(permissionsHeader.value)) {
+        violations.push(
+          `${workflowName}:${index + 1} ordinary verification workflows cannot request a write permission`,
         );
       }
 

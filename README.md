@@ -49,9 +49,13 @@ scripts/
   check-workflow-policy.mjs
   install-vendor-skills.mjs
 tests/
+  helpers/
+    canvas-environment.mjs
 ```
 
 `index.html` is the preview harness. It mounts each animation and handles HMR disposal during local development. The preview Canvas elements use their existing Arc/Spiral headings as accessible names and fallback text; the preview containers scale down without forcing an oversized minimum width.
+
+The Canvas behavioral suites share only test-environment plumbing through `tests/helpers/canvas-environment.mjs`. Scenario assertions stay in focused test files; this helper is not a production runtime abstraction.
 
 ## Arc configuration
 
@@ -98,7 +102,7 @@ npm test
 npm run build
 ```
 
-`npm run check` syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
+`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
 
 CI also runs `npm audit --audit-level=high` after a clean install.
 

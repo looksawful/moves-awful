@@ -5,9 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "check": "node --check canvas-animations/arc.js && node --check canvas-animations/spiral.js",
+    "check": "node --check canvas-animations/arc.js && node --check canvas-animations/spiral.js && node --check scripts/install-vendor-skills.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "skills:list": "node scripts/install-vendor-skills.mjs --list",
+    "skills:install": "node scripts/install-vendor-skills.mjs"
   },
   "devDependencies": {
     "vite": "^8.0.12"

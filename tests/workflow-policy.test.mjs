@@ -36,6 +36,20 @@ jobs:
   assert.match(violations[0], /write permission/i);
 });
 
+test("ordinary workflow using inline write permission is rejected", () => {
+  const workflow = `name: CI
+permissions: { contents: read, pull-requests: write }
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+`;
+
+  const violations = validateWorkflowSource("ci.yml", workflow);
+
+  assert.equal(violations.length, 1);
+  assert.match(violations[0], /write permission/i);
+});
+
 test("ordinary workflow using write-all is rejected", () => {
   const workflow = `name: CI
 permissions: write-all

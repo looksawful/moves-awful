@@ -2,50 +2,110 @@
 
 ## Scope
 
-Reviewed MOVES AWFUL repository documentation, current project Notion wording, and the production/integration implementation in `looksawful/looksawful.ru` using the looksawful-editorial source hierarchy: facts/evidence first, then terminology, clarity, compression, and claims safety.
+Reviewed MOVES AWFUL repository documentation and runtime against `looksawful/looksawful-editorial` methodology and the richer `looksawful/looksawful.ru` AnimatedCanvasGallery integration.
 
-## Editorial findings
+The audit order was evidence first, then claim safety, terminology, clarity, visual/runtime boundaries and implementation. Site behavior is reference evidence, not authority to copy site-specific architecture into this standalone repository.
 
-### Repository README
+## Editorial method applied
 
-1. `deterministic disposal and Vite HMR cleanup` is stronger than current evidence. The repository has explicit disposal/HMR code, but no browser/runtime regression suite yet. Prefer `explicit disposal and Vite HMR cleanup` until #3 proves deterministic lifecycle behavior.
-2. `Current public preview` can imply parity with current `master`, which is not established while `gh-pages` is separately published. Prefer `GitHub Pages preview` or `published preview`; only call it current after #4 traces deployment to a source SHA.
-3. `reusable visual motion experiments` / `reusable` is acceptable as design intent, but portability is currently limited by hard-coded Arc/Spiral assets. Once external item data is supported, the claim becomes materially stronger.
+Relevant local routes:
 
-### Notion project docs
+- Editorial source hierarchy and `policies/claims.md`;
+- writer -> information/plain-language cleanup -> critic -> factual recheck;
+- design terminology governance;
+- image-skill orchestrator with the minimum relevant visual set: reference consistency, art direction, UI/web design and visual QA;
+- MOVES-specific Canvas runtime and verification skills;
+- reviewed vendor guidance for web-animation performance and accessibility.
 
-1. `ready for the next small development stage` is a project judgement, not a test result. Keep the distinction visible: build-clean baseline, runtime robustness still pending #2/#3/#4.
-2. Do not let `clean baseline` imply production-grade Canvas lifecycle evidence. The current verified layer is install + syntax + Vite build.
-3. Historical site/copy pages must remain non-authoritative for engineering state; this is already documented correctly.
+ComfyUI, Blender, game-asset, advertising and generic image-generation routes were intentionally not applied because they do not own this Canvas-library task. The Editorial image orchestrator explicitly requires the minimum relevant set rather than loading every available skill.
 
-### looksawful.ru public/project copy
+## Direction lock
 
-1. Three Jestei landing media catalog entries use the exact same title and description. If these captions are surfaced together, the repetition adds no information. Keep a shared reusable description only when UI intentionally de-duplicates it; otherwise give each media use a specific observation or suppress repeated captions at the presentation layer.
-2. Keep `Canvas` capitalization consistent. The current Moves project paragraph uses `Canvas-анимации`; retain that form in related media descriptions and future copy.
-3. Normalize project naming. Use `Moves Awful` for the project/library name. Avoid switching between generic `библиотека анимаций` and the more precise public definition `библиотека анимированных галерей` unless the broader term is intentionally required.
-4. `Для анимаций использовали мою библиотеку Moves Awful` is ownership-safe but vague. Where the surface can support one more clause, name what the library provides: Canvas gallery layouts/variants rather than repeating that it is used “for animations”.
-5. The public summary `Библиотека анимированных галерей для лендингов.` is concise and materially more precise than generic “animation library”; use it as the terminology anchor unless project scope expands beyond galleries.
+Preserve:
 
-## Site implementation worth bringing back to MOVES AWFUL
+- Arc/Spiral visual geometry and timing;
+- authored default datasets;
+- Canvas 2D rendering;
+- Vanilla/Vite consumption;
+- reduced-motion and viewport behavior;
+- explicit mount/dispose API.
 
-The `looksawful.ru` integration has capabilities absent from the standalone repository:
+Allowed to change:
 
-- typed `MovesAnimatedCanvasGalleryData` / `MovesCanvasGalleryVariant` boundary;
-- six variants: Arc, Spiral, Horizontal, Diagonal, Showcase Diagonal, Masonry;
-- data-driven items rather than animation-local hard-coded media ownership;
-- viewport gating with IntersectionObserver;
-- reduced-motion activity gating that stops RAF and performs a static redraw;
-- explicit loading/ready/error state;
-- DPR cap in the integrated runtime;
-- keyboard-operable variant tabs with roving tab index;
-- autoplay gating tied to viewport/visibility/reduced motion;
-- smoke/E2E coverage for gallery presence and Canvas initialization;
-- screenshot-evidence contract tied to variant/state/viewport/source SHA.
+- lifecycle correctness;
+- observable runtime state;
+- demo accessibility semantics and responsive shell;
+- tests and CI wording;
+- documentation accuracy;
+- host-page side effects.
 
-Do not backport site-specific Media Catalog IDs, browser mockup chrome, global project selectors, or the separate production masonry profile into the standalone library core.
+Do not backport:
 
-## External sandbox status
+- looksawful.ru Media Catalog identifiers or CMS ownership;
+- `.project` selectors or browser-mockup presentation ownership;
+- production-only masonry profile;
+- React/TypeScript as incidental cleanup;
+- a visual redesign hidden inside runtime work.
 
-- Replit app creation was attempted and rejected by Replit with `requires_active_subscription`; no Replit app was created.
-- No CodePen connector/app is available in the current ChatGPT plugin directory, so an authenticated Pen could not be created from this session.
-- These are external integration blockers, not MOVES AWFUL build failures.
+## Findings and resolution
+
+### Repository claims
+
+**Resolved:** the old README statement that there was no dedicated test suite was stale. The repository now has a dependency-free Node regression suite and CI runs it. README, `AGENTS.md` and verification guidance now describe the actual evidence boundary: modeled lifecycle/state behavior is tested; browser pixels are not.
+
+**Resolved:** `Current public preview` was too strong because `gh-pages` is publication state separate from `master`. The README now says `Published GitHub Pages preview` and explicitly defers source-to-public traceability to #4.
+
+**Resolved:** `reusable` is now materially supported beyond intent because Arc and Spiral accept caller-provided `{ src, title? }` data instead of requiring only module-owned demo media. This does not yet imply a packaged multi-framework component system.
+
+**Resolved:** lifecycle wording is now backed by Node regression evidence for mount/dispose, remount ownership, stale asynchronous completion, invalid replacement mounts, visibility, reduced motion and viewport gating. Browser appearance remains a separate evidence class.
+
+### Runtime correctness
+
+**Resolved with RED -> GREEN evidence:** a newer mount attempt previously validated Canvas/context before claiming the animation key. If the new target was missing or had no 2D context, an older active lifecycle or pending asynchronous mount could survive. Arc and Spiral now claim/invalidate the key before target validation and abort their own pending token safely when the new target cannot start.
+
+**Resolved with RED -> GREEN evidence:** Arc previously injected a global `:root` style element during library mount. The renderer now keeps its effective Inter / 500 / white defaults locally and continues to honor CSS-variable overrides without mutating the host document stylesheet.
+
+**Resolved with RED -> GREEN evidence:** the standalone preview now reuses its existing Arc/Spiral headings as Canvas accessible names and fallback text. Its Arc/Spiral containers scale down responsively instead of forcing an oversized minimum width. This is a structural accessibility/responsive improvement, not a claim of WCAG conformance or visual-browser proof.
+
+**Resolved:** the syntax gate no longer maintains a hand-written list of old test files. `scripts/check-tests.mjs` discovers every `tests/*.test.mjs` file and syntax-checks it; `npm test` remains the behavior gate.
+
+## Portable production-site parity
+
+### Now present in standalone MOVES AWFUL
+
+- Arc and Spiral with caller-provided data;
+- stale-mount ownership protection;
+- visibility activity gating;
+- `prefers-reduced-motion` static rendering without perpetual RAF work;
+- `IntersectionObserver` viewport gating with fallback when unavailable;
+- observable `loading` / `ready` / `error` state;
+- partial-image placeholder behavior;
+- dependency-free Node regression coverage for those modeled contracts;
+- basic accessible naming/fallback and responsive behavior in the standalone demo.
+
+### Still intentionally open / evidence-gated
+
+- strict typed `MovesAnimatedCanvasGalleryData` / variant core: #6;
+- Horizontal, Diagonal, Showcase Diagonal and Masonry as public standalone variants: #5;
+- standalone DPR policy/cap: #5, requires browser quality/performance evidence before selecting a default;
+- optional keyboard-operable variant tabs if the standalone demo actually needs a variant switcher: #5;
+- real-browser smoke/E2E and screenshot evidence for public variants/states: #5;
+- React adapter over the future typed core: #7;
+- traceable `master` -> `gh-pages` publication path: #4.
+
+The richer site integration remains useful evidence for these candidates, but its presence does not make them supported by the standalone repository until they are implemented and verified here.
+
+## looksawful.ru copy notes
+
+The earlier public-copy findings remain separate from this repository hardening pass:
+
+- keep `Moves Awful` naming consistent;
+- prefer the precise public definition `библиотека анимированных галерей` while the project scope remains gallery-focused;
+- keep `Canvas` capitalization consistent;
+- avoid repeating the same explanatory Moves paragraph across several nearby media entries when the presentation already supplies shared context.
+
+No site copy was silently rewritten as part of this MOVES runtime PR.
+
+## Evidence boundary
+
+GitHub Actions currently proves clean install, high-severity dependency audit, source/test syntax gates, the dependency-free Node regression suite and Vite production build. It does not prove pixel-level browser appearance, real-device DPR quality, browser memory behavior or public Pages parity. Those claims remain unavailable until the corresponding browser/deployment evidence is run.

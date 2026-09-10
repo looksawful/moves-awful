@@ -179,6 +179,14 @@ const beginMount = (key) => {
 
 const isCurrentMount = (key, token) => pendingMounts.get(key) === token;
 
+const abortMount = (key, token) => {
+  if (isCurrentMount(key, token)) {
+    pendingMounts.delete(key);
+  }
+
+  return noop;
+};
+
 const completeMount = (key, token, dispose) => () => {
   if (isCurrentMount(key, token)) {
     pendingMounts.delete(key);
@@ -616,23 +624,24 @@ const injectStyles = (() => {
 })();
 
 export const mountArc = async (canvasId = "arc-container", options = {}) => {
+  const key = getAnimationKey(canvasId);
+  const mountToken = beginMount(key);
+
   injectStyles();
   const canvas = document.getElementById(canvasId);
 
   if (!canvas) {
     console.error(`Canvas with id "${canvasId}" not found`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
     console.error(`Failed to get 2d context from canvas "${canvasId}"`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
-  const key = getAnimationKey(canvasId);
-  const mountToken = beginMount(key);
   canvas.dataset.galleryState = "loading";
   const titleStyle = getTitleStyle(canvas);
 

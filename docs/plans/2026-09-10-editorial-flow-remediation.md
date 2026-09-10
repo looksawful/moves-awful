@@ -8,8 +8,8 @@ This plan applies the useful operating model from `looksawful-editorial` without
 
 Throughout every task:
 
-- preserve Arc and Spiral visual parameters, labels and default assets unless a task explicitly changes visual behavior;
-- preserve one active lifecycle per animation/canvas key, stale-mount rejection, idempotent disposal, visibility/reduced-motion/viewport gating and image-cache failure eviction;
+- preserve Arc and Spiral visual parameters, timing, labels and default assets unless a task explicitly changes visual behavior;
+- preserve one active lifecycle per animation/canvas key, invalid/stale replacement ownership, idempotent disposal, visibility/reduced-motion/viewport gating and image-cache failure eviction;
 - keep `master` as source and `gh-pages` as publication state until #4 deliberately changes deployment mechanics;
 - keep ordinary CI verification-only and read-only;
 - do not introduce `looksawful.ru` Media Catalog/CMS/page dependencies;
@@ -19,177 +19,124 @@ Throughout every task:
 ## Execution status
 
 Completed:
-- [x] Task 1 — explicit runtime state PR #11 merged;
-- [x] documentation portion of Task 2 — stale verification/roadmap wording corrected on the editorial deep-pass branch;
-- [x] issue #1 and #5 current-state checklists reconciled;
-- [x] MOVES Notion current-state pages reconciled with current GitHub/runtime evidence.
+- [x] Task 1 — explicit runtime state merged;
+- [x] Task 2a — verification truth/docs reconciled;
+- [x] Task 2b — dynamic syntax gate now covers every `tests/*.test.mjs` file;
+- [x] lifecycle hardening — invalid replacement mounts invalidate older active/pending owners before target validation;
+- [x] Arc host-style isolation — runtime no longer injects global `:root` CSS;
+- [x] basic demo Canvas accessible naming/fallback and narrow-width responsive shell;
+- [x] issue #1/#5 current-state checklists reconciled.
 
 Next engineering checkpoint:
-- [ ] finish Task 2 executable source/CI policy guards;
-- [ ] Task 3 test-only harness extraction;
-- [ ] Task 4 public contract + configurable DPR ceiling;
-- [ ] Task 7 minimal browser/visual evidence contract before additional variants or TypeScript migration.
+- [ ] Task 2c — add an executable ordinary-CI mutation policy guard;
+- [ ] Task 3 — extract test-only harness helpers when extending the suite;
+- [ ] Task 4 — compact public contract + deliberate/configurable DPR policy;
+- [ ] Task 7 — minimal browser/visual evidence contract before additional variants or TypeScript migration.
 
 ## Task 1 — explicit runtime state — COMPLETE
 
-PR #11 established and merged the contract:
+Current contract:
 - `loading -> ready` when at least one image is renderable;
 - zero renderable images -> `error`;
 - `error` starts no RAF;
 - partial failures preserve placeholder behavior;
-- stale mounts cannot overwrite the current state;
-- Arc/Spiral visual math and default assets were unchanged.
+- stale mounts cannot overwrite current state.
 
-Merged runtime-state commit: `734057bcc399ac4f06fe5fbcddbcab5b2081bc23`.
+## Task 2 — verification truth and policy contracts — PARTIAL
 
-## Task 2 — repair verification truth and add policy contracts — PARTIAL
-
-Documentation corrections are complete on the current editorial deep-pass branch:
-- README acknowledges Node behavioral tests and separates them from browser evidence;
-- AGENTS defines the current verification chain and TDD discipline;
-- MOVES verification/runtime skills reflect caller items, viewport gating and runtime state;
-- issue #1/#5 and Notion no longer treat #2/#3 as pending.
+Completed:
+- README/AGENTS/local skills describe the actual Node behavioral suite and its evidence boundary;
+- `scripts/check-tests.mjs` discovers all `tests/*.test.mjs` files in deterministic order;
+- CI runs clean install, high-severity audit, syntax gate, Node tests and Vite build;
+- ordinary CI currently declares `permissions: contents: read`.
 
 Remaining executable work:
+1. Add a lightweight repository-contract test/script that rejects write-capable/source-patching/push behavior in ordinary verification workflows.
+2. Allow narrowly scoped write permissions only in explicitly named release/deployment workflows when such workflows exist.
+3. Keep the guard dependency-light and inspectable.
 
-Files: `package.json`, CI workflow(s), new lightweight repository-contract test/script if needed.
-
-Steps:
-1. Add a failing contract assertion showing `npm run check` currently omits `tests/canvas-viewport.test.mjs` and `tests/canvas-state.test.mjs`.
-2. Make `npm run check` cover all relevant checked-in JS/MJS sources without a heavyweight lint stack.
-3. Add a guard that rejects write-capable/source-patching behavior in ordinary verification workflows. Purpose-specific deployment workflows may have narrowly scoped write permissions later.
-4. Run high-severity audit, syntax/source gate, Node tests and production build.
-
-Acceptance: docs and executable checks agree; newly added test files cannot silently fall outside the source gate; ordinary CI mutation is mechanically rejected.
+Acceptance: ordinary verification cannot silently become source-mutating CI.
 
 ## Task 3 — extract test-only environment helpers
 
-Files: `tests/helpers/canvas-environment.mjs` plus lifecycle/viewport/state suites.
+Files: `tests/helpers/canvas-environment.mjs` plus focused suites.
 
 Steps:
-1. Record current suite behavior/counts before refactoring.
-2. Extract only fake EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver utilities shared by the three suites.
-3. Keep assertions and scenario intent in individual test files.
-4. Prove identical behavior and no production-file changes.
+1. Record current test behavior before refactoring.
+2. Extract only fake EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver utilities that are genuinely repeated.
+3. Keep scenario assertions and intent in individual test files.
+4. Prove identical behavior and no production-runtime change.
 
-Acceptance: less harness drift without creating a production runtime abstraction.
+Acceptance: less test harness drift without creating a production runtime abstraction.
 
-## Task 4 — define portable public contract and configurable DPR ceiling
+## Task 4 — define portable public contract and deliberate DPR policy
 
-Files: current Arc/Spiral modules, tests, compact API contract documentation.
+Define the current public contract before TypeScript freezes it:
+- variants `arc` and `spiral`;
+- item `{ src, title? }`;
+- disposer/lifecycle ownership, including invalid replacement semantics;
+- states `loading | ready | error`;
+- visibility/reduced-motion/viewport activity behavior;
+- Arc title override contract;
+- candidate configurable DPR ceiling.
 
-Steps:
-1. Define the current public contract: variants `arc` and `spiral`; item `{ src, title? }`; disposer lifecycle; states `loading|ready|error`; current activity behavior; options including candidate `maxDpr`.
-2. Add RED tests proving supplied `maxDpr` caps backing-store dimensions and invalid/non-positive values fall back safely.
-3. Implement configuration without changing existing default rendering behavior.
-4. Document why the default remains behavior-preserving until browser evidence supports a lower global cap.
-5. Run the complete verification chain.
-6. Verify representative DPR values in a real browser before adopting a lower default cap.
+For DPR work:
+1. start with focused RED tests for any chosen option such as `maxDpr`;
+2. invalid/non-positive values must fall back safely;
+3. preserve current default appearance unless browser evidence supports a lower default cap;
+4. verify representative DPR values in a real browser before changing a default.
 
-Acceptance: callers can deliberately bound DPR cost; current default appearance is unchanged; any lower default is evidence-backed rather than copied from the site.
+Acceptance: callers can understand and, if implemented, deliberately bound DPR cost without a blind copy of the site's `1.5` value.
 
 ## Task 5 — additional portable variants
 
-Candidate variants: `horizontal`, `diagonal`, `showcase-diagonal`, `masonry`.
+Candidates: `horizontal`, `diagonal`, `showcase-diagonal`, `masonry`.
 
-Do not treat this as a mandatory batch.
+Do not treat this as a mandatory batch. For every accepted variant require portable data/config, lifecycle/state parity, focused behavioral coverage where useful, real-browser visual evidence and no site CMS/browser-chrome ownership.
 
-Steps per accepted variant:
-1. Extract only portable render math/defaults from the `looksawful.ru` Moves profile.
-2. Record preserve/vary/avoid contract before implementation.
-3. Add behavioral tests for mount/state/lifecycle/data input and deterministic non-pixel invariants where useful.
-4. Implement one variant at a time; do not modify Arc/Spiral math.
-5. Once a third public renderer exists, reevaluate shared runtime extraction based on actual reuse.
-6. Add browser screenshot evidence before calling the variant visually approved/public.
+## Task 6 — standalone demo accessibility and variant controls — PARTIAL
 
-Acceptance: every accepted public variant has portable data input, lifecycle/state parity and visual evidence; rejected variants have explicit rationale; no site CMS dependencies are introduced.
+Completed:
+- existing Arc/Spiral headings provide Canvas accessible names/fallback text;
+- preview containers scale below the previous oversized Arc minimum.
 
-## Task 6 — standalone demo accessibility and variant controls
+Conditional future work if the preview becomes a variant selector:
+- appropriate tab semantics;
+- roving tab index and keyboard navigation;
+- visible focus;
+- equivalent DOM text when essential content would otherwise live only in Canvas.
 
-This task is conditional on the preview becoming a variant selector rather than remaining two independent surfaces.
-
-If implemented:
-1. keep core renderers independent of demo DOM ownership;
-2. add `role=tablist`, `aria-selected`, roving `tabIndex`, Left/Right/Home/End keyboard behavior and visible focus;
-3. define Canvas accessibility boundary and equivalent DOM text when item titles/content are essential;
-4. gate any demo autoplay by viewport/visibility/reduced motion;
-5. add DOM/browser evidence for keyboard behavior.
-
-Acceptance: demo is keyboard-operable and does not rely on Canvas as the sole carrier of essential content.
+Do not add controls merely to imitate the production site.
 
 ## Task 7 — visual/browser evidence contract
 
-Files: new `docs/evidence/README.md`, optional small manifest/schema and a minimal browser smoke path.
+Create the smallest reliable browser evidence path. Each evidence record should identify source SHA, browser/version, variant, runtime state, viewport/container size, DPR/reduced-motion state and the observable claim being proved.
 
-Each evidence record should identify:
-- source SHA;
-- browser/version or automation runtime;
-- variant;
-- runtime state;
-- viewport and container dimensions;
-- DPR and reduced-motion state;
-- artifact path/reference;
-- observable claim proved by the run/capture.
-
-Minimum browser checks before TypeScript migration:
+Minimum checks before TypeScript migration:
 - Arc and Spiral initialize without console errors;
 - normal data reaches `ready`;
 - controlled all-error input reaches `error` without continuous RAF;
 - viewport enter/leave gates activity;
 - reduced motion preserves a stable presentation;
-- resize updates backing-store/rendering safely;
-- representative responsive sizes remain usable.
+- resize/backing-store behavior remains safe;
+- representative narrow/desktop sizes remain usable.
 
-Automated metadata validation must not be described as proof of visual correctness.
+Automated metadata validation is not visual proof.
 
 ## Task 8 — strict TypeScript core (#6)
 
-Preconditions: selected #5 portable contract is stable and a real-browser baseline exists.
+Preconditions: selected #5 public contract is stable enough to type and a real-browser baseline exists.
 
-Steps:
-1. add strict TS config/typecheck as a migration gate;
-2. define variant/item/state/lifecycle types;
-3. migrate shared lifecycle/image/sizing core without visual/math change;
-4. migrate renderers one by one while preserving Vanilla consumption;
-5. no `any`; no React dependency; no long-lived duplicated JS/TS renderer implementations;
-6. preserve Node/browser/build evidence.
-
-Acceptance: TypeScript is the canonical core, Vanilla remains supported, visual/runtime parity remains demonstrated.
+Requirements: strict TS, no `any`, one canonical renderer implementation, Vanilla remains supported, no React dependency in core, no long-lived JS/TS duplicate renderers, behavioral/browser/build evidence preserved.
 
 ## Task 9 — React adapter (#7)
 
-Precondition: Task 8 green.
-
-Steps:
-1. add React as peer/dev dependency only for adapter verification;
-2. build a thin ref/effect wrapper over the same typed mount/dispose core;
-3. add StrictMode mount/unmount/remount tests proving no duplicate RAF/listeners/observers;
-4. prove SSR-safe import boundary where required;
-5. verify core/Vanilla output does not pull React into its bundle.
-
-Acceptance: one render implementation, React adapter only, StrictMode-safe lifecycle.
+Precondition: typed core green. React remains a thin peer/dev dependency adapter over the same core. Require StrictMode-safe mount/unmount/remount behavior, SSR-safe import/setup where relevant and proof React does not leak into the Vanilla/core path.
 
 ## Task 10 — traceable publication (#4)
 
-Precondition: runtime/public variants intended for publication are stable enough to publish deliberately.
-
-Steps:
-1. audit current `gh-pages` contents/history; do not overwrite manually;
-2. add purpose-specific deploy workflow with minimum write permissions and pinned actions;
-3. build from an exact `master` SHA and expose/store that SHA in publication metadata;
-4. deploy generated output only; ordinary CI remains read-only;
-5. verify public preview and recorded source SHA match;
-6. only then consider stronger README wording than `GitHub Pages preview`.
-
-Acceptance: public preview is traceable to an exact source commit and reproducible through repository automation.
+Audit current `gh-pages`, add purpose-specific deployment with minimum write permissions and pinned actions, build from an exact `master` SHA, publish generated output only, expose/store source SHA and verify the public preview against it. Ordinary CI remains read-only.
 
 ## Task 11 — downstream truth / closure
 
-After each merged task, update only downstream documentation affected by proven behavior.
-
-At final closure:
-- refresh issue #1 order/checkmarks;
-- close #5/#6/#7/#4 only with exact evidence or explicit rejection rationale;
-- remove stale/superseded work branches only after checking for unique commits;
-- ensure README, AGENTS and local skills describe current checks and supported consumption paths;
-- run a final critic pass against the deep audit so no stale claim survives because code moved faster than prose.
+After each merged task, update only downstream truth affected by proven behavior. At final closure refresh #1, close #5/#6/#7/#4 only with exact evidence or explicit rejection rationale, remove stale work branches only after checking for unique commits, and run a final critic pass against the deep audit.

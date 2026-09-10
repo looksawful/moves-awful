@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check canvas-animations/arc.js && node --check canvas-animations/spiral.js && node --check scripts/install-vendor-skills.mjs && node --check tests/canvas-lifecycle.test.mjs",
+    "check": "node --check canvas-animations/arc.js && node --check canvas-animations/spiral.js && node --check scripts/install-vendor-skills.mjs && node --check scripts/check-tests.mjs && node scripts/check-tests.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "skills:list": "node scripts/install-vendor-skills.mjs --list",

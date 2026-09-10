@@ -26,13 +26,13 @@ section {
 }
 
 .arc-cell {
-  width: clamp(768px, 100vw, 1280px);
-  height: clamp(516px, 67.1875vw, 860px);
+  width: min(100%, 1280px);
+  aspect-ratio: 1280 / 860;
 }
 
 .spiral-cell {
-  width: clamp(369px, 100vw, 672px);
-  height: clamp(369px, 100vw, 672px);
+  width: min(100%, 672px);
+  aspect-ratio: 1;
 }
 
 canvas {

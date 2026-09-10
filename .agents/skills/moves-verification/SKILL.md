@@ -5,33 +5,43 @@ description: Use before claiming MOVES AWFUL changes are ready, especially for C
 
 # MOVES AWFUL verification
 
-Use evidence proportional to the change. Do not turn this small project into a laboratory, but do not call source inspection a test either.
+Use evidence proportional to the change. Keep the project small, but do not call source inspection a test and do not call Node lifecycle evidence pixel-level browser proof.
 
 ## Fast source gate
 
-For JavaScript changes:
+For JavaScript or test-source changes:
 
 ```bash
 npm run check
 ```
 
-This syntax-checks the source/scripts covered by the package command without requiring a browser.
+This syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file.
 
-## Behavioral gate
+## Behavior gate
 
-For runtime behavior changes:
+For Canvas lifecycle, state, activity, accessibility-contract or demo-structure changes:
 
 ```bash
 npm test
 ```
 
-The current dependency-light Node suite covers Arc and Spiral lifecycle ownership, remounts, stale asynchronous mounts, RAF start/stop behavior, resize, document visibility, reduced motion, viewport proximity, portable caller items and `loading` / `ready` / `error` state.
+The dependency-free Node suite currently covers the modeled contracts for:
 
-Treat this as behavioral evidence for the modeled browser APIs. It is not real-browser rendering or visual evidence.
+- normal mount/dispose and idempotent cleanup;
+- remount ownership and stale async mounts;
+- invalid replacement mounts when the Canvas disappears or has no 2D context;
+- visibility and reduced-motion activity;
+- viewport gating;
+- caller-provided media items;
+- `loading` / `ready` / `error` state;
+- Arc host-style isolation;
+- structural accessibility/responsive requirements of the demo.
+
+These tests exercise controlled DOM/Canvas substitutes. They prove ownership/state behavior represented by the harness, not actual pixels, layout rendering or browser performance.
 
 ## Integration gate
 
-For source, dependency, asset-path, HTML, CSS or Vite configuration changes run the complete chain:
+For source, asset-path, HTML, CSS, Vite configuration or release-facing changes run:
 
 ```bash
 npm ci
@@ -41,38 +51,31 @@ npm test
 npm run build
 ```
 
-A successful Vite build confirms module resolution and production bundling. A successful high-severity audit confirms the configured npm vulnerability threshold. Neither proves animation appearance or Pages deployment freshness.
+A successful Vite build confirms module resolution and production bundling. It does not prove animation appearance.
 
 ## Browser gate
 
-Required when rendering, lifecycle, sizing, assets, accessibility or timing changes are intended to be called browser-verified:
+Required when rendering, sizing, assets, accessibility, timing or performance changes depend on actual browser behavior:
 
-- Arc mounts and animates without console errors.
-- Spiral mounts and animates without console errors.
-- gallery state reaches `ready` for renderable data and `error` when no image is renderable;
-- partial image failure remains usable through placeholders;
-- viewport enter/leave starts and stops continuous RAF without multiplying ownership;
-- resize does not accumulate duplicate animation instances;
+- Arc and Spiral initialize without console errors;
+- visible animations run and offscreen animations stop/resume as intended;
+- images resolve and partial failures fall back without crashing the loop;
+- narrow and desktop preview sizes remain usable;
 - hidden-tab visibility pauses work and returning resumes cleanly;
 - repeated mount/dispose does not leave listeners, observers or RAF loops behind;
-- reduced-motion mode preserves a stable frame and redraws when required;
-- representative responsive preview sizes remain usable;
-- dense-DPR behavior is checked whenever the DPR policy changes.
+- reduced-motion mode preserves a stable usable presentation;
+- actual Canvas output remains visually correct for the change under review.
 
-When screenshot evidence is produced, record the exact source SHA, variant, viewport/container size, browser and the state the capture is intended to prove. Do not silently update a visual baseline after a failure.
-
-## HMR evidence
-
-The Node lifecycle suite exercises the ownership invariants HMR depends on, including replacement mounts and idempotent disposal. That is not the same as running the Vite dev server and observing a real HMR cycle. Describe the former as tested lifecycle behavior and the latter only after browser/dev-server verification.
+If browser execution is unavailable, state that boundary explicitly. Do not replace browser evidence with screenshots from an unrelated build or with source inspection.
 
 ## Deployment gate
 
-`master` is source; `gh-pages` is publication state. Do not claim the Pages preview is updated merely because `master` builds. Issue #4 owns the traceable publication mechanism. Deployment evidence must identify the source SHA represented by the publication state.
+`master` is source; `gh-pages` is publication state. Do not claim the public preview is updated merely because `master` builds. Verify the publication mechanism and the public preview when deployment is part of the task.
 
-## Checks that still do not exist
+## Checks not present yet
 
-There is currently no dedicated real-browser automation suite, screenshot regression gate, linter or TypeScript typecheck. Add one only when a concrete contract requires it. Never report a nonexistent check as green.
+The project currently has no dedicated browser-automation suite, linter or typecheck. Add one only when the relevant roadmap work or a concrete regression justifies it. Never report a nonexistent check as green.
 
 ## Failure handling
 
-Record the exact failing command, relevant error and whether the failure predates the patch. Preserve intentional TDD RED evidence when it proves the test could detect the missing behavior. Fix deterministic cleanup blockers before starting unrelated feature work. Do not suppress a check merely to obtain a green result.
+Record the exact failing command, relevant error and whether the failure predates the patch. For behavior changes, prefer RED -> GREEN evidence. Fix deterministic cleanup blockers before unrelated feature work, and never suppress a check merely to obtain a green result.

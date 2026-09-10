@@ -179,6 +179,14 @@ const beginMount = (key) => {
 
 const isCurrentMount = (key, token) => pendingMounts.get(key) === token;
 
+const abortMount = (key, token) => {
+  if (isCurrentMount(key, token)) {
+    pendingMounts.delete(key);
+  }
+
+  return noop;
+};
+
 const completeMount = (key, token, dispose) => () => {
   if (isCurrentMount(key, token)) {
     pendingMounts.delete(key);
@@ -517,10 +525,9 @@ const getTitleStyle = (canvas) => {
 
   return {
     fontFamily:
-      styles?.getPropertyValue("--arc-title-font-family").trim() ||
-      `"Commissioner Variable", "Commissioner", sans-serif`,
-    fontWeight: styles?.getPropertyValue("--arc-title-font-weight").trim() || "600",
-    color: styles?.getPropertyValue("--arc-title-color").trim() || "rgba(0, 0, 0, 0.92)",
+      styles?.getPropertyValue("--arc-title-font-family").trim() || `"Inter Variable", "Inter", sans-serif`,
+    fontWeight: styles?.getPropertyValue("--arc-title-font-weight").trim() || "500",
+    color: styles?.getPropertyValue("--arc-title-color").trim() || "rgba(255, 255, 255, 1)",
   };
 };
 
@@ -600,39 +607,24 @@ const renderArc = ({ ctx, items, titleStyle, time, width, height, reducedMotion 
 
   ctx.globalAlpha = 1;
 };
-const injectStyles = (() => {
-  let injected = false;
-  return () => {
-    if (injected || typeof document === "undefined") return;
-    injected = true;
-    const style = document.createElement("style");
-    style.textContent = `:root {
-  --arc-title-font-family: "Inter Variable", "Inter", sans-serif;
-  --arc-title-font-weight: 500;
-  --arc-title-color: rgba(255, 255, 255, 1);
-}`;
-    document.head.appendChild(style);
-  };
-})();
 
 export const mountArc = async (canvasId = "arc-container", options = {}) => {
-  injectStyles();
+  const key = getAnimationKey(canvasId);
+  const mountToken = beginMount(key);
   const canvas = document.getElementById(canvasId);
 
   if (!canvas) {
     console.error(`Canvas with id "${canvasId}" not found`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
   const ctx = canvas.getContext("2d");
 
   if (!ctx) {
     console.error(`Failed to get 2d context from canvas "${canvasId}"`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
-  const key = getAnimationKey(canvasId);
-  const mountToken = beginMount(key);
   canvas.dataset.galleryState = "loading";
   const titleStyle = getTitleStyle(canvas);
 

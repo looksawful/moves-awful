@@ -6,34 +6,32 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 
 1. Read `README.md`.
 2. Read the relevant project skill in `.agents/skills/`.
-3. Inspect the current implementation before editing. Do not infer behavior from names, dated audits or old roadmap text.
+3. Inspect the current implementation before editing. Do not infer behavior from names or old notes.
 4. Read `package.json` for the actual scripts and dependency versions.
-5. Read current GitHub Issues/PR evidence when the task depends on whether a behavior is implemented or only planned.
-6. If the task needs generic specialist guidance, inspect `skills/vendor/registry.yaml` and install only the relevant reviewed vendor skill. Repository-local rules remain authoritative.
+5. If the task needs generic specialist guidance, inspect `skills/vendor/registry.yaml` and install only the relevant reviewed vendor skill. Repository-local rules remain authoritative.
 
 ## Repository contracts
 
 - `master` is the source branch.
-- `gh-pages` is publication state. Do not treat it as a stale feature branch, and do not infer that it matches current `master` until issue #4 proves the publication path.
+- `gh-pages` is publication state. Do not treat it as a stale feature branch.
 - `index.html` is the preview/mount harness, not a product application shell.
 - `canvas-animations/arc.js` and `canvas-animations/spiral.js` are independent modules with explicit mount/dispose lifecycle.
-- Both modules support built-in demo data and optional caller items shaped as `{ src, title? }`.
-- Runtime state is observable as `canvas.dataset.galleryState` with `loading`, `ready` and `error` values.
-- Continuous RAF activity is gated by document visibility, reduced-motion preference and viewport proximity when `IntersectionObserver` is available.
+- A new mount attempt owns the animation/canvas key immediately: it must invalidate an older active or pending lifecycle even when the new Canvas is missing or has no 2D context.
+- Caller-provided `{ src, title? }` items replace the built-in demo dataset when supplied.
+- Runtime state is caller-observable through `canvas.dataset.galleryState`: `loading`, then `ready` when at least one image is renderable, or `error` when none is renderable.
 - Assets belong under `canvas-animations/assets/<animation>/` and should be referenced with `new URL(..., import.meta.url)` so Vite can resolve them.
-- Preserve HMR cleanup hooks, resize cleanup, viewport-observer cleanup, visibility handling, image-cache behavior, runtime-state semantics and disposal when changing runtime code.
-- Preserve `prefers-reduced-motion` static-render behavior. Improvements are welcome only when they remain behaviorally verified.
+- Preserve HMR cleanup, resize cleanup, visibility handling, viewport gating, image-cache behavior and disposal when changing runtime code.
+- Preserve `prefers-reduced-motion`: static reduced-motion rendering must not keep a perpetual RAF loop alive.
+- Library runtime must not inject global host-page CSS. Demo-only presentation belongs in `style.css`; reusable Arc label defaults/overrides belong to the renderer/CSS-variable contract.
 - Do not introduce a framework, TypeScript migration, state library, generic animation engine or shared abstraction as incidental cleanup.
-- Do not change visual parameters, labels or default asset selection unless the task explicitly requires a visual change.
+- Do not change visual parameters, labels or asset selection unless the task requires a visual change.
 
 ## Change discipline
 
 - Keep patches narrow. This codebase does not benefit from speculative abstraction.
-- For behavior changes, use a focused RED → GREEN test cycle before refactoring.
 - Prefer deleting proven dead code to wrapping it in another layer.
 - A third animation may justify extracting shared Canvas lifecycle helpers; two similar files alone are not sufficient proof.
 - Do not silently replace Canvas 2D with DOM, SVG, WebGL or Three.js.
-- Do not copy `looksawful.ru` Media Catalog IDs, CMS ownership, browser mockup chrome or global project selectors into the library core.
 - Do not commit generated `dist/`, local logs, IDE state, `node_modules/` or installed `.agents/vendor/` copies.
 - Do not edit `gh-pages` manually unless the task is explicitly deployment repair.
 
@@ -49,13 +47,11 @@ npm test
 npm run build
 ```
 
-The repository has a dependency-light Node behavioral suite covering lifecycle, remount/stale-mount ownership, reduced motion, visibility, resize, viewport gating, caller item input and runtime state. A green Node suite is not browser or screenshot evidence.
+The repository has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state and structural demo contracts. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
 
-There is currently no dedicated real-browser automation suite, visual regression gate, linter or TypeScript typecheck. Never describe those checks as passing when they do not exist.
+For visual/runtime changes, also verify the public or local preview in a browser at representative Arc and Spiral sizes and check console errors, resizing, tab visibility changes, viewport entry/exit and reduced-motion behavior. If browser execution is unavailable, record that evidence boundary explicitly rather than substituting build success.
 
-For rendering, lifecycle, sizing, accessibility or timing changes, also verify Arc and Spiral in a real browser at representative sizes. Check console errors, asset loading/error state, resizing, viewport enter/leave behavior, tab visibility changes and reduced-motion behavior. If browser evidence is unavailable, state that limitation explicitly rather than substituting source inspection.
-
-For deployment work, verify the actual `master` → `gh-pages` mechanism and the published source revision. A successful `master` build alone does not prove the Pages preview was updated.
+If a required verification cannot run, record the exact blocker instead of substituting source inspection for runtime evidence.
 
 ## Project skills
 

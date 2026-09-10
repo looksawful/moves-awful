@@ -396,10 +396,19 @@ export const mountSpiral = async (canvasId = "spiral-container", options = {}) =
 
   const key = getAnimationKey(canvasId);
   const mountToken = beginMount(key);
+  canvas.dataset.galleryState = "loading";
   const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : spiralCoverUrls;
   const images = await loadCoverImages(sourceItems);
 
   if (!isCurrentMount(key, mountToken)) {
+    return noop;
+  }
+
+  const hasRenderableImages = images.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableImages ? "ready" : "error";
+
+  if (!hasRenderableImages) {
+    pendingMounts.delete(key);
     return noop;
   }
 

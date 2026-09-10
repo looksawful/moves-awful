@@ -272,6 +272,7 @@ for (const variant of variants) {
       const firstMount = module[variant.mountName](env.canvas.id);
       const secondMount = module[variant.mountName](env.canvas.id);
 
+      await Promise.resolve();
       assert.ok(env.pendingImageCount > 0, "expected image loading to remain pending");
       assert.equal(env.pendingRafCount, 0);
 

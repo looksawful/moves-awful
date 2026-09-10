@@ -97,6 +97,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   let frameId;
   let running = false;
   let reducedMotion = false;
+  let viewportActive = typeof globalThis.IntersectionObserver !== "function";
 
   const doc = globalThis.document;
   const win = globalThis.window;
@@ -117,7 +118,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   const resize = () => {
     const changed = resizeCanvasToDisplaySize(canvas, ctx);
 
-    if (changed && reducedMotion && !doc?.hidden && !disposed) {
+    if (changed && reducedMotion && viewportActive && !doc?.hidden && !disposed) {
       renderFrame({
         canvas,
         ctx,
@@ -157,7 +158,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   };
 
   const syncActivity = () => {
-    if (disposed || doc?.hidden) {
+    if (disposed || doc?.hidden || !viewportActive) {
       stop();
       return;
     }
@@ -181,10 +182,20 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   };
 
   const resizeObserver = globalThis.ResizeObserver ? new globalThis.ResizeObserver(resize) : null;
+  const viewportObserver = globalThis.IntersectionObserver
+    ? new globalThis.IntersectionObserver(
+        ([entry]) => {
+          viewportActive = Boolean(entry?.isIntersecting);
+          syncActivity();
+        },
+        { rootMargin: "50% 0px", threshold: 0 },
+      )
+    : null;
 
   reducedMotion = Boolean(motionQuery?.matches);
   resize();
   resizeObserver?.observe(canvas);
+  viewportObserver?.observe(canvas);
   win?.addEventListener?.("resize", resize);
   doc?.addEventListener?.("visibilitychange", handleVisibilityChange);
 
@@ -202,6 +213,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
     disposed = true;
     stop();
     resizeObserver?.disconnect();
+    viewportObserver?.disconnect();
     win?.removeEventListener?.("resize", resize);
     doc?.removeEventListener?.("visibilitychange", handleVisibilityChange);
 

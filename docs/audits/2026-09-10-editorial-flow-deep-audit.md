@@ -8,22 +8,22 @@ Audited sources include current MOVES code, issues/PRs, CI, local skills, tests,
 
 ## Current status
 
-Resolved or materially advanced during the 2026-09-10 hardening pass:
+Resolved or materially advanced during the 2026-09-10 hardening passes:
 
-- **F1 verification documentation staleness:** resolved. README, AGENTS and MOVES verification/runtime skills now acknowledge the Node behavioral suite and separate it from browser/visual evidence.
-- **F2 source-check gap:** resolved. `scripts/check-tests.mjs` discovers and syntax-checks every `tests/*.test.mjs` file, and `npm run check` invokes it.
+- **F1 verification documentation staleness:** resolved. README, AGENTS and MOVES verification/runtime skills acknowledge the Node behavioral suite and separate it from browser/visual evidence.
+- **F2 source-check gap:** resolved. `scripts/check-tests.mjs` recursively discovers and syntax-checks `.mjs` sources under `tests/`, including shared helpers, and `npm run check` invokes it.
+- **F3 ordinary CI mutation policy:** resolved by #15 / PR #17. `npm run check` rejects write permissions, `write-all` and `git push` in ordinary workflows while keeping a narrow exact deploy/release filename allowlist.
 - **F4 explicit runtime state:** resolved. `loading / ready / error` is caller-observable and no RAF starts when no image is renderable.
 - **F7 basic demo accessibility/responsiveness:** partially resolved. The standalone Canvas elements reuse the existing Arc/Spiral headings as accessible names/fallback text, and preview containers can scale below the old 768px Arc minimum. Variant-tab interaction remains a separate product decision.
+- **F9 duplicated test harness plumbing:** implemented on #18 / PR #19. Canvas suites share `tests/helpers/canvas-environment.mjs`; scenario assertions remain in focused suites and production runtime is untouched.
 - **F13 roadmap staleness:** resolved in issues #1/#5; completed runtime work is no longer listed as pending.
-- **Lifecycle hardening beyond the original audit:** invalid replacement mounts now invalidate older active/pending owners before Canvas/context validation.
+- **Lifecycle hardening beyond the original audit:** invalid replacement mounts invalidate older active/pending owners before Canvas/context validation.
 - **Host-page isolation beyond the original audit:** Arc no longer injects a global `:root` style block when mounted.
 
 Still open and worth implementing:
 
-- **F3** ordinary CI mutation policy is documented but not mechanically guarded;
 - **F5** standalone DPR contract/policy is unresolved;
 - **F6/F8** extra variants and real-browser/visual evidence remain open;
-- **F9** duplicated test harness helpers now exist across multiple suites and are justified for test-only extraction when touched next;
 - **F10** the public runtime/API contract remains distributed across README/issues rather than a compact canonical contract artifact;
 - **F11/F12** TypeScript/React and publication remain planned/open.
 
@@ -55,7 +55,9 @@ When a lower layer conflicts with a higher layer, record the stale rule/source c
 - all-image failure produces `error` and owns no RAF; partial image failures remain renderable through placeholders.
 - Arc mount does not inject global host-page CSS.
 - the preview has a structural Canvas text alternative and narrow-width responsive shell contract.
-- CI runs `npm ci`, high-severity npm audit, syntax checks, Node tests and Vite build.
+- ordinary verification workflow mutation policy is executable and covered by Node fixtures, including an inline-YAML write-permission regression.
+- Canvas test suites share test-only environment plumbing without changing production runtime behavior.
+- CI runs `npm ci`, high-severity npm audit, syntax/workflow policy checks, Node tests and Vite build.
 
 ### Not yet proven
 
@@ -72,17 +74,15 @@ When a lower layer conflicts with a higher layer, record the stale rule/source c
 
 ### F1 — RESOLVED — verification documentation contradicted the repository
 
-Old prose said no test suite existed. Current documentation now describes the dependency-free Node regression suite and explicitly distinguishes it from real-browser/visual evidence.
+Current documentation describes the dependency-free Node regression suite and explicitly distinguishes it from real-browser/visual evidence.
 
-### F2 — RESOLVED — source check omitted checked-in test files
+### F2 — RESOLVED — source check omitted checked-in test sources
 
-`npm run check` now uses `scripts/check-tests.mjs`, which discovers and syntax-checks all `tests/*.test.mjs` files in deterministic order.
+`npm run check` uses `scripts/check-tests.mjs`, which recursively discovers and syntax-checks `.mjs` sources under `tests/` in deterministic order, including `tests/helpers/`.
 
-### F3 — PROCESS GAP — CI read-only policy is not mechanically guarded
+### F3 — RESOLVED — ordinary CI mutation policy
 
-Current ordinary CI uses `permissions: contents: read`, but the repository has historical evidence of temporary write-capable automation used to patch and push source.
-
-Required action: add a lightweight repository contract check that rejects write permissions/source-patching/push behavior in ordinary verification workflows, while allowing explicitly named release/deployment workflows if they are later required.
+PR #17 added a dependency-free checked-in workflow policy. Ordinary workflows reject block/inline write permissions, `permissions: write-all` and `git push`; mutation is allowlisted only for exact deploy/release filenames. The critic pass added a RED regression for inline flow-map permissions before merge.
 
 ### F4 — RESOLVED — explicit runtime state
 
@@ -102,7 +102,7 @@ Required action: evaluate variants individually. Preserve Arc/Spiral authored ma
 
 ### F7 — PARTIALLY RESOLVED — accessibility/demo contract
 
-The preview now provides basic Canvas accessible naming/fallback text and no longer requires an oversized Arc container on narrow viewports.
+The preview provides basic Canvas accessible naming/fallback text and no longer requires an oversized Arc container on narrow viewports.
 
 Still undecided: whether the standalone preview should become a variant-selector UI at all. If tabs are introduced later, keyboard navigation, selection semantics and focus management belong to that demo adapter, not the Canvas renderer core.
 
@@ -112,11 +112,9 @@ Node tests prove lifecycle/state ownership but not pixel/browser correctness.
 
 Required action: add a small browser smoke/evidence path and record exact source SHA, browser, variant/state, viewport/container size, DPR/reduced-motion state and what each capture proves.
 
-### F9 — TEST HARNESS DUPLICATION
+### F9 — RESOLVED — test harness duplication
 
-Lifecycle, viewport, state and hardening suites build overlapping fake DOM/Canvas/RAF/Image environments.
-
-Required action: extract test-only environment helpers when the harness is next extended. Keep scenario assertions in focused suites. Do not use this as an excuse for premature production runtime abstraction.
+PR #19 extracts repeated fake global/EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver plumbing into `tests/helpers/canvas-environment.mjs`. Lifecycle, invalid-remount, state, viewport and Arc host-style suites retain their own scenario assertions. The helper is test-only and the refactor changes no production Canvas files.
 
 ### F10 — PUBLIC TERMINOLOGY/API CONTRACT IS IMPLICIT
 
@@ -136,7 +134,7 @@ Required action: #4 must establish a purpose-specific publication path and trace
 
 ### F13 — RESOLVED — roadmap staleness
 
-Issues #1/#5 now reflect the implemented runtime foundation and the remaining evidence-gated work.
+Issues #1/#5 reflect the implemented runtime foundation and the remaining evidence-gated work.
 
 ## Explicit preserve decisions
 
@@ -144,6 +142,7 @@ Issues #1/#5 now reflect the implemented runtime foundation and the remaining ev
 - Do not import `looksawful.ru` Media Catalog IDs, CMS/page ownership, browser mockup chrome, global project selectors or production-only masonry profile.
 - Do not migrate Arc/Spiral visual math while repairing lifecycle/tooling/documentation.
 - Do not extract a generic production runtime merely because two renderer files duplicate helpers.
+- Shared fake-browser plumbing may live under `tests/helpers/`; production runtime ownership remains module-local until a real product-level reason changes it.
 - Do not add a large test framework while Node's built-in runner can enforce the current contracts.
 - Do not call structural HTML/CSS tests WCAG conformance or pixel-level evidence.
 
@@ -162,4 +161,4 @@ Issues #1/#5 now reflect the implemented runtime foundation and the remaining ev
 
 ## Audit conclusion
 
-The runtime foundation is materially ahead of the original baseline. The next engineering work should close the CI-policy guard and test-harness/public-contract gaps, then tackle DPR/browser evidence. TypeScript, React and publication should consume that stabilized contract rather than redefining it by accident.
+The runtime, verification and test-harness foundations are materially ahead of the original baseline. The next engineering work should define the compact public contract and deliberate DPR policy, then obtain real-browser evidence before additional variants or the TypeScript/React tracks freeze observable behavior into a larger API surface. Publication remains a separate traceability task under #4.

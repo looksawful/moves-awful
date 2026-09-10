@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const testsDirectory = fileURLToPath(new URL("../tests/", import.meta.url));
 const testFiles = readdirSync(testsDirectory)
   .filter((name) => name.endsWith(".test.mjs"))
-  .sort();
+  .sort(); // Keep syntax failures stable across filesystems and CI runs.
 
 if (!testFiles.length) {
   throw new Error("No tests/*.test.mjs files found.");

@@ -47,7 +47,12 @@ const createContext = () => {
   return ctx;
 };
 
-const installEnvironment = ({ reducedMotion = false } = {}) => {
+const installEnvironment = ({
+  reducedMotion = false,
+  canvasPresent = true,
+  contextAvailable = true,
+  autoLoadImages = true,
+} = {}) => {
   const originals = new Map();
   const setGlobal = (key, value) => {
     originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
@@ -73,7 +78,9 @@ const installEnvironment = ({ reducedMotion = false } = {}) => {
     clientHeight: 360,
     width: 0,
     height: 0,
-    getContext(kind) { return kind === "2d" ? ctx : null; },
+    getContext(kind) {
+      return kind === "2d" && contextAvailable ? ctx : null;
+    },
   };
 
   const document = {
@@ -85,7 +92,9 @@ const installEnvironment = ({ reducedMotion = false } = {}) => {
       async load() {},
     },
     createElement() { return { textContent: "" }; },
-    getElementById(id) { return id === canvas.id ? canvas : null; },
+    getElementById(id) {
+      return canvasPresent && id === canvas.id ? canvas : null;
+    },
   };
 
   const window = {
@@ -115,6 +124,7 @@ const installEnvironment = ({ reducedMotion = false } = {}) => {
     trigger() { this.callback(); }
   }
 
+  const pendingImages = [];
   class FakeImage {
     constructor() {
       this.width = 256;
@@ -124,7 +134,8 @@ const installEnvironment = ({ reducedMotion = false } = {}) => {
     async decode() {}
     set src(value) {
       this._src = value;
-      queueMicrotask(() => this.onload?.());
+      if (autoLoadImages) queueMicrotask(() => this.onload?.());
+      else pendingImages.push(this);
     }
     get src() { return this._src; }
   }
@@ -145,11 +156,16 @@ const installEnvironment = ({ reducedMotion = false } = {}) => {
     window,
     motionQuery,
     get pendingRafCount() { return rafCallbacks.size; },
+    get pendingImageCount() { return pendingImages.length; },
     flushRaf(time = 16) {
       const pending = [...rafCallbacks.values()];
       rafCallbacks.clear();
       for (const callback of pending) callback(time);
       return pending.length;
+    },
+    resolveImages() {
+      const images = pendingImages.splice(0);
+      for (const image of images) image.onload?.();
     },
     triggerResize() { resizeObserver?.trigger(); },
     restore() {
@@ -173,6 +189,38 @@ const variants = [
 ];
 
 for (const variant of variants) {
+  test(`${variant.name}: missing canvas returns a safe no-op lifecycle`, async () => {
+    const env = installEnvironment({ canvasPresent: false });
+    try {
+      const module = await importFresh(variant.modulePath);
+      const dispose = await module[variant.mountName](env.canvas.id);
+
+      assert.equal(typeof dispose, "function");
+      assert.equal(env.pendingRafCount, 0);
+      assert.equal(env.window.listenerCount("resize"), 0);
+      assert.equal(env.document.listenerCount("visibilitychange"), 0);
+      dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: missing 2d context returns a safe no-op lifecycle`, async () => {
+    const env = installEnvironment({ contextAvailable: false });
+    try {
+      const module = await importFresh(variant.modulePath);
+      const dispose = await module[variant.mountName](env.canvas.id);
+
+      assert.equal(typeof dispose, "function");
+      assert.equal(env.pendingRafCount, 0);
+      assert.equal(env.window.listenerCount("resize"), 0);
+      assert.equal(env.document.listenerCount("visibilitychange"), 0);
+      dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
   test(`${variant.name}: normal motion owns one RAF chain and dispose cancels it`, async () => {
     const env = installEnvironment();
     try {
@@ -189,6 +237,56 @@ for (const variant of variants) {
       assert.equal(env.window.listenerCount("resize"), 0);
       assert.equal(env.document.listenerCount("visibilitychange"), 0);
       assert.equal(env.motionQuery.listenerCount("change"), 0);
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: remount replaces the previous active lifecycle`, async () => {
+    const env = installEnvironment();
+    try {
+      const module = await importFresh(variant.modulePath);
+      const firstDispose = await module[variant.mountName](env.canvas.id);
+      assert.equal(env.pendingRafCount, 1);
+
+      const secondDispose = await module[variant.mountName](env.canvas.id);
+      assert.equal(env.pendingRafCount, 1, "remount must replace, not multiply, RAF ownership");
+      assert.equal(env.window.listenerCount("resize"), 1);
+      assert.equal(env.document.listenerCount("visibilitychange"), 1);
+      assert.equal(env.motionQuery.listenerCount("change"), 1);
+
+      firstDispose();
+      assert.equal(env.pendingRafCount, 1, "stale disposer must not stop the replacement instance");
+
+      secondDispose();
+      assert.equal(env.pendingRafCount, 0);
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: stale async mount cannot become active`, async () => {
+    const env = installEnvironment({ autoLoadImages: false });
+    try {
+      const module = await importFresh(variant.modulePath);
+      const firstMount = module[variant.mountName](env.canvas.id);
+      const secondMount = module[variant.mountName](env.canvas.id);
+
+      assert.ok(env.pendingImageCount > 0, "expected image loading to remain pending");
+      assert.equal(env.pendingRafCount, 0);
+
+      env.resolveImages();
+      const [firstDispose, secondDispose] = await Promise.all([firstMount, secondMount]);
+
+      assert.equal(env.pendingRafCount, 1, "only the newest completed mount may own animation work");
+      assert.equal(env.window.listenerCount("resize"), 1);
+      assert.equal(env.document.listenerCount("visibilitychange"), 1);
+
+      firstDispose();
+      assert.equal(env.pendingRafCount, 1, "stale mount disposer must be a no-op");
+
+      secondDispose();
+      assert.equal(env.pendingRafCount, 0);
     } finally {
       env.restore();
     }

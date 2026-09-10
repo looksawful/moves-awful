@@ -74,6 +74,7 @@ const installEnvironment = ({
   const ctx = createContext();
   const canvas = {
     id: "test-canvas",
+    dataset: {},
     clientWidth: 640,
     clientHeight: 360,
     width: 0,
@@ -125,15 +126,19 @@ const installEnvironment = ({
   }
 
   const pendingImages = [];
+  const requestedImageUrls = [];
   class FakeImage {
     constructor() {
       this.width = 256;
       this.height = 256;
+      this.naturalWidth = 256;
+      this.naturalHeight = 256;
       this.decoding = "auto";
     }
     async decode() {}
     set src(value) {
       this._src = value;
+      requestedImageUrls.push(value);
       if (autoLoadImages) queueMicrotask(() => this.onload?.());
       else pendingImages.push(this);
     }
@@ -155,6 +160,7 @@ const installEnvironment = ({
     document,
     window,
     motionQuery,
+    requestedImageUrls,
     get pendingRafCount() { return rafCallbacks.size; },
     get pendingImageCount() { return pendingImages.length; },
     flushRaf(time = 16) {
@@ -215,6 +221,23 @@ for (const variant of variants) {
       assert.equal(env.pendingRafCount, 0);
       assert.equal(env.window.listenerCount("resize"), 0);
       assert.equal(env.document.listenerCount("visibilitychange"), 0);
+      dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: caller-provided items replace the built-in demo dataset`, async () => {
+    const env = installEnvironment();
+    const customSrc = `https://example.test/${variant.name.toLowerCase()}.webp`;
+
+    try {
+      const module = await importFresh(variant.modulePath);
+      const dispose = await module[variant.mountName](env.canvas.id, {
+        items: [{ src: customSrc, title: "Custom item" }],
+      });
+
+      assert.deepEqual(env.requestedImageUrls, [customSrc]);
       dispose();
     } finally {
       env.restore();

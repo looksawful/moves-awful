@@ -27,11 +27,14 @@ Completed:
 - [x] Arc host-style isolation — runtime no longer injects global `:root` CSS;
 - [x] basic demo Canvas accessible naming/fallback and narrow-width responsive shell;
 - [x] issue #1/#5 current-state checklists reconciled;
-- [x] Task 3 — shared test-only Canvas environment implemented on #18 / PR #19 without production runtime changes.
+- [x] Task 3 — shared test-only Canvas environment implemented in #18 / PR #19 without production runtime changes;
+- [x] Task 4a — compact Vanilla public contract defined in `docs/public-contract.md`;
+- [x] Task 4b — common opt-in `maxDpr` implemented for Arc/Spiral with RED -> GREEN Node coverage and no default behavior change.
 
 Next engineering checkpoint:
-- [ ] Task 4 — compact public contract + deliberate/configurable DPR policy;
-- [ ] Task 7 — minimal browser/visual evidence contract before additional variants or TypeScript migration.
+- [ ] Task 7 — obtain minimal real-browser/visual evidence;
+- [ ] Task 4c — use that evidence before selecting any lower default DPR cap;
+- [ ] Task 5 — evaluate additional variants individually after the evidence path exists.
 
 ## Task 1 — explicit runtime state — COMPLETE
 
@@ -54,37 +57,46 @@ Implemented:
 
 Acceptance: ordinary verification cannot silently become source-mutating CI without an explicit tested policy change.
 
-## Task 3 — extract test-only environment helpers — COMPLETE ON PR #19
+## Task 3 — extract test-only environment helpers — COMPLETE
 
 Files: `tests/helpers/canvas-environment.mjs` plus focused suites.
 
 Implemented:
-1. Current green `master` CI was preserved as the refactor baseline.
+1. Green `master` CI was preserved as the refactor baseline.
 2. Repeated fake EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver/global restore/fresh-import plumbing moved into one test-only helper.
 3. Lifecycle, invalid-remount, state, viewport and Arc host-style suites retain their own scenario assertions and intent.
-4. `scripts/check-tests.mjs` now recursively syntax-checks the helper as well as root suites.
-5. No production Canvas file is changed by the refactor.
+4. `scripts/check-tests.mjs` recursively syntax-checks the helper as well as root suites.
+5. No production Canvas file changed in the refactor.
 
 Acceptance: less test harness drift without creating a production runtime abstraction.
 
-## Task 4 — define portable public contract and deliberate DPR policy
+## Task 4 — portable public contract and DPR policy — PARTIALLY COMPLETE
 
-Define the current public contract before TypeScript freezes it:
-- variants `arc` and `spiral`;
+The canonical current Vanilla contract lives in `docs/public-contract.md` and covers:
+- public variants `arc` and `spiral`;
+- entry points `mountArc(canvasId, options?)` / `mountSpiral(canvasId, options?)`;
 - item `{ src, title? }`;
 - disposer/lifecycle ownership, including invalid replacement semantics;
 - states `loading | ready | error`;
 - visibility/reduced-motion/viewport activity behavior;
-- Arc title override contract;
-- candidate configurable DPR ceiling.
+- Arc title CSS-variable override contract;
+- common optional `maxDpr` mount option;
+- explicit distinction between public mount options and internal authored renderer tuning.
 
-For DPR work:
-1. start with focused RED tests for any chosen option such as `maxDpr`;
-2. invalid/non-positive values must fall back safely;
-3. preserve current default appearance unless browser evidence supports a lower default cap;
-4. verify representative DPR values in a real browser before changing a default.
+Implemented DPR behavior:
+1. RED tests proved both renderers ignored the proposed cap while preserving all previous cases.
+2. `maxDpr` now caps backing-store DPR for finite positive numeric values.
+3. Effective DPR never falls below `1` and never exceeds device DPR because of the option.
+4. Omitted, zero, negative, `NaN`, non-finite and non-number values preserve historical device-DPR behavior.
+5. Resize work reapplies the cap.
+6. The default remains unchanged and uncapped.
 
-Acceptance: callers can understand and, if implemented, deliberately bound DPR cost without a blind copy of the site's `1.5` value.
+Remaining DPR decision:
+- verify representative device DPR / `maxDpr` combinations in real browsers;
+- compare visual quality and cost before selecting any lower default;
+- do not copy the site's `1.5` default blindly.
+
+Acceptance for the additive control is complete; acceptance for changing the default remains evidence-gated.
 
 ## Task 5 — additional portable variants
 
@@ -117,7 +129,8 @@ Minimum checks before TypeScript migration:
 - viewport enter/leave gates activity;
 - reduced motion preserves a stable presentation;
 - resize/backing-store behavior remains safe;
-- representative narrow/desktop sizes remain usable.
+- representative narrow/desktop sizes remain usable;
+- representative device DPR and `maxDpr` combinations preserve acceptable output before any default cap is changed.
 
 Automated metadata validation is not visual proof.
 

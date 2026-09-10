@@ -4,7 +4,7 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 
 ## Read first
 
-1. Read `README.md`.
+1. Read `README.md` and `docs/public-contract.md`.
 2. Read the relevant project skill in `.agents/skills/`.
 3. Inspect the current implementation before editing. Do not infer behavior from names or old notes.
 4. Read `package.json` for the actual scripts and dependency versions.
@@ -14,11 +14,13 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 
 - `master` is the source branch.
 - `gh-pages` is publication state. Do not treat it as a stale feature branch.
+- `docs/public-contract.md` is the compact consumer contract for the current Vanilla API. Internal renderer constants are not public options merely because they are documented or visible in source.
 - `index.html` is the preview/mount harness, not a product application shell.
 - `canvas-animations/arc.js` and `canvas-animations/spiral.js` are independent modules with explicit mount/dispose lifecycle.
 - A new mount attempt owns the animation/canvas key immediately: it must invalidate an older active or pending lifecycle even when the new Canvas is missing or has no 2D context.
 - Caller-provided `{ src, title? }` items replace the built-in demo dataset when supplied.
 - Runtime state is caller-observable through `canvas.dataset.galleryState`: `loading`, then `ready` when at least one image is renderable, or `error` when none is renderable.
+- `maxDpr` is an optional common mount option. Omitted or invalid values preserve device DPR; a finite positive value caps backing-store DPR without allowing effective DPR below `1`. Do not change the default DPR policy without browser evidence.
 - Assets belong under `canvas-animations/assets/<animation>/` and should be referenced with `new URL(..., import.meta.url)` so Vite can resolve them.
 - Preserve HMR cleanup, resize cleanup, visibility handling, viewport gating, image-cache behavior and disposal when changing runtime code.
 - Preserve `prefers-reduced-motion`: static reduced-motion rendering must not keep a perpetual RAF loop alive.
@@ -32,7 +34,8 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 
 - Keep patches narrow. This codebase does not benefit from speculative abstraction.
 - Prefer deleting proven dead code to wrapping it in another layer.
-- A third animation may justify extracting shared Canvas lifecycle helpers; two similar files alone are not sufficient proof.
+- A third animation may justify extracting shared production Canvas lifecycle helpers; two similar files alone are not sufficient proof.
+- Test-only shared environment plumbing under `tests/helpers/` is not permission to mirror that abstraction into production code.
 - Do not silently replace Canvas 2D with DOM, SVG, WebGL or Three.js.
 - Do not commit generated `dist/`, local logs, IDE state, `node_modules/` or installed `.agents/vendor/` copies.
 - Do not edit `gh-pages` manually unless the task is explicitly deployment repair.
@@ -49,7 +52,7 @@ npm test
 npm run build
 ```
 
-`npm run check` includes source/test syntax coverage and the checked-in GitHub Actions workflow policy. The repository also has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state, structural demo contracts and workflow-policy fixtures. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
+`npm run check` includes source/test syntax coverage and the checked-in GitHub Actions workflow policy. The repository also has a dependency-free Node regression suite covering the modeled Canvas lifecycle, invalid remounts, viewport gating, runtime state, DPR option semantics, structural demo contracts and workflow-policy fixtures. There is currently no dedicated browser-automation suite, linter or typecheck. Never describe those nonexistent checks as passing, and never treat Node lifecycle tests as pixel-level browser evidence.
 
 For visual/runtime changes, also verify the public or local preview in a browser at representative Arc and Spiral sizes and check console errors, resizing, tab visibility changes, viewport entry/exit and reduced-motion behavior. If browser execution is unavailable, record that evidence boundary explicitly rather than substituting build success.
 

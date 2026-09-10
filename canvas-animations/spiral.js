@@ -64,7 +64,15 @@ const completeMount = (key, token, dispose) => () => {
   dispose();
 };
 
-const getDevicePixelRatio = () => Math.max(1, globalThis.devicePixelRatio || globalThis.window?.devicePixelRatio || 1);
+const getDevicePixelRatio = (maxDpr) => {
+  const deviceDpr = Math.max(1, globalThis.devicePixelRatio || globalThis.window?.devicePixelRatio || 1);
+
+  if (typeof maxDpr !== "number" || !Number.isFinite(maxDpr) || maxDpr <= 0) {
+    return deviceDpr;
+  }
+
+  return Math.min(deviceDpr, Math.max(1, maxDpr));
+};
 
 const resizeCanvasToDisplaySize = (canvas, ctx, dpr = getDevicePixelRatio()) => {
   const width = Math.max(1, Math.round((canvas.clientWidth || 0) * dpr));
@@ -98,7 +106,7 @@ const disposeCanvasAnimationsByPrefix = (prefix) => {
   });
 };
 
-const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
+const createCanvasAnimation = ({ key, canvas, ctx, renderFrame, maxDpr }) => {
   disposeCanvasAnimation(key);
 
   let disposed = false;
@@ -112,7 +120,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   const motionQuery = win?.matchMedia?.("(prefers-reduced-motion: reduce)");
 
   const render = (time = 0) => {
-    resizeCanvasToDisplaySize(canvas, ctx);
+    resizeCanvasToDisplaySize(canvas, ctx, getDevicePixelRatio(maxDpr));
     renderFrame({
       canvas,
       ctx,
@@ -124,7 +132,7 @@ const createCanvasAnimation = ({ key, canvas, ctx, renderFrame }) => {
   };
 
   const resize = () => {
-    const changed = resizeCanvasToDisplaySize(canvas, ctx);
+    const changed = resizeCanvasToDisplaySize(canvas, ctx, getDevicePixelRatio(maxDpr));
 
     if (changed && reducedMotion && viewportActive && !doc?.hidden && !disposed) {
       renderFrame({
@@ -424,6 +432,7 @@ export const mountSpiral = async (canvasId = "spiral-container", options = {}) =
     key,
     canvas,
     ctx,
+    maxDpr: options.maxDpr,
     renderFrame: ({ time, width, height, reducedMotion }) =>
       renderSpiral({
         ctx,

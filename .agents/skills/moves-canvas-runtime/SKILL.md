@@ -9,7 +9,7 @@ Work with the existing Canvas 2D modules instead of importing a generic animatio
 
 ## Read first
 
-1. Read `AGENTS.md` and `README.md`.
+1. Read `AGENTS.md`, `README.md` and `docs/public-contract.md`.
 2. Read the complete target module before changing its rendering or lifecycle.
 3. Inspect the matching asset directory and preview dimensions in `style.css`.
 4. Treat current visual parameters, timing, labels and default datasets as authored behavior unless the task explicitly changes them.
@@ -32,7 +32,10 @@ Each animation module owns its mount lifecycle. Preserve these properties:
 - caller-provided `{ src, title? }` items replace the built-in demo dataset when supplied;
 - partial image failure keeps the runtime usable with placeholders; zero renderable images expose `error` and do not start RAF;
 - `canvas.dataset.galleryState` exposes `loading`, then `ready` or `error`;
-- DPR-aware backing-store sizing.
+- DPR-aware backing-store sizing;
+- optional `maxDpr` has identical Arc/Spiral semantics: omitted or invalid values preserve device DPR, finite positive values cap effective DPR, and effective DPR never falls below `1`.
+
+`docs/public-contract.md` is the compact consumer contract. Do not infer new public mount options from internal renderer constants.
 
 Do not add global singleton state outside the module unless cross-animation coordination is explicitly required.
 
@@ -44,7 +47,7 @@ Do not add global singleton state outside the module unless cross-animation coor
 - Preserve square center-crop behavior unless the task is specifically about image fitting.
 - Avoid per-frame DOM writes and avoid new layout reads beyond the existing canvas size contract.
 - Library runtime must not inject global host-page styles. Demo styling belongs in `style.css`; reusable renderer defaults and CSS-variable overrides stay local to the renderer/host cascade.
-- Do not raise device pixel ratio cost casually. A future DPR cap needs browser evidence at representative display densities before it becomes a default.
+- Do not raise device pixel ratio cost casually. `maxDpr` may bound it per mount, but changing the library's default DPR policy still requires browser evidence at representative display densities.
 
 ## Motion and accessibility
 
@@ -55,7 +58,7 @@ Do not add global singleton state outside the module unless cross-animation coor
 
 ## Abstraction rule
 
-Arc and Spiral intentionally duplicate a small lifecycle layer today. Do not extract shared helpers simply because duplication exists. Extract only when a third consumer, the planned typed core, or a concrete maintenance bug demonstrates that shared ownership is cheaper and safer.
+Arc and Spiral intentionally duplicate a small lifecycle layer today. Do not extract shared production helpers simply because duplication exists. Extract only when a third consumer, the planned typed core, or a concrete maintenance bug demonstrates that shared ownership is cheaper and safer.
 
 ## Verification
 

@@ -14,18 +14,19 @@ Resolved or materially advanced during the 2026-09-10 hardening passes:
 - **F2 source-check gap:** resolved. `scripts/check-tests.mjs` recursively discovers and syntax-checks `.mjs` sources under `tests/`, including shared helpers, and `npm run check` invokes it.
 - **F3 ordinary CI mutation policy:** resolved by #15 / PR #17. `npm run check` rejects write permissions, `write-all` and `git push` in ordinary workflows while keeping a narrow exact deploy/release filename allowlist.
 - **F4 explicit runtime state:** resolved. `loading / ready / error` is caller-observable and no RAF starts when no image is renderable.
+- **F5 DPR contract/policy:** partially resolved on #20 / PR #21. Arc and Spiral expose the same opt-in `maxDpr` backing-store cap with Node coverage while omission preserves historical device-DPR behavior. Selecting a lower default remains blocked on real-browser quality/performance evidence.
 - **F7 basic demo accessibility/responsiveness:** partially resolved. The standalone Canvas elements reuse the existing Arc/Spiral headings as accessible names/fallback text, and preview containers can scale below the old 768px Arc minimum. Variant-tab interaction remains a separate product decision.
-- **F9 duplicated test harness plumbing:** implemented on #18 / PR #19. Canvas suites share `tests/helpers/canvas-environment.mjs`; scenario assertions remain in focused suites and production runtime is untouched.
+- **F9 duplicated test harness plumbing:** resolved by #18 / PR #19. Canvas suites share `tests/helpers/canvas-environment.mjs`; scenario assertions remain in focused suites and production runtime is untouched.
+- **F10 public terminology/API contract:** resolved on #20 / PR #21 through `docs/public-contract.md`, which freezes the current Vanilla entry points, item/state/lifecycle semantics, Arc styling boundary and additive `maxDpr` option before TypeScript/React work.
 - **F13 roadmap staleness:** resolved in issues #1/#5; completed runtime work is no longer listed as pending.
 - **Lifecycle hardening beyond the original audit:** invalid replacement mounts invalidate older active/pending owners before Canvas/context validation.
 - **Host-page isolation beyond the original audit:** Arc no longer injects a global `:root` style block when mounted.
 
 Still open and worth implementing:
 
-- **F5** standalone DPR contract/policy is unresolved;
-- **F6/F8** extra variants and real-browser/visual evidence remain open;
-- **F10** the public runtime/API contract remains distributed across README/issues rather than a compact canonical contract artifact;
-- **F11/F12** TypeScript/React and publication remain planned/open.
+- **F5 remainder:** choose any lower default DPR cap only after browser evidence;
+- **F6/F8:** extra variants and real-browser/visual evidence remain open;
+- **F11/F12:** TypeScript/React and publication remain planned/open.
 
 ## Source precedence for engineering work
 
@@ -40,7 +41,7 @@ Highest to lowest for a task:
 7. `looksawful.ru` as production evidence for portable capabilities, not authority over standalone visual math;
 8. historical audits, stale issue checklists, old branches and old deployment state.
 
-When a lower layer conflicts with a higher layer, record the stale rule/source conflict instead of forcing current code to satisfy obsolete prose.
+For the public Vanilla API, `docs/public-contract.md` is the compact contract artifact beneath executable behavior and explicit task requirements. When a lower layer conflicts with a higher layer, record the stale rule/source conflict instead of forcing current code to satisfy obsolete prose.
 
 ## Current evidence ledger
 
@@ -57,11 +58,13 @@ When a lower layer conflicts with a higher layer, record the stale rule/source c
 - the preview has a structural Canvas text alternative and narrow-width responsive shell contract.
 - ordinary verification workflow mutation policy is executable and covered by Node fixtures, including an inline-YAML write-permission regression.
 - Canvas test suites share test-only environment plumbing without changing production runtime behavior.
+- Arc and Spiral support the same opt-in `maxDpr` semantics: omitted/invalid values preserve device DPR, finite positive values cap it without lowering effective DPR below `1`, and resize work preserves the cap.
+- `docs/public-contract.md` is the canonical compact consumer contract for the current Vanilla API.
 - CI runs `npm ci`, high-severity npm audit, syntax/workflow policy checks, Node tests and Vite build.
 
 ### Not yet proven
 
-- deliberate/configurable DPR ceiling behavior;
+- whether a lower default DPR cap is visually/performance-safe in representative real browsers/displays;
 - public Horizontal / Diagonal / Showcase Diagonal / Masonry standalone variants;
 - keyboard-operable variant-selector demo, if such a selector is adopted;
 - real-browser screenshot evidence for every public variant/state;
@@ -88,11 +91,11 @@ PR #17 added a dependency-free checked-in workflow policy. Ordinary workflows re
 
 Current contract: `loading -> ready` when at least one image renders; zero renderable images -> `error`; error owns no RAF; partial failure stays renderable.
 
-### F5 — DPR CONTRACT GAP
+### F5 — PARTIALLY RESOLVED — DPR contract and default policy
 
-Standalone Arc/Spiral currently use uncapped device pixel ratio. The site integration caps DPR at `1.5`, but copying that constant blindly would change standalone cost/quality without standalone evidence.
+Arc and Spiral now accept an optional common `maxDpr` mount option. A finite positive value caps backing-store DPR while never reducing effective DPR below `1`; omitted, invalid, non-finite and non-number values preserve device-DPR behavior. The cap is reapplied on resize/render work.
 
-Preferred action: evaluate a portable `maxDpr` option or cap policy with focused behavioral coverage and real-browser quality/performance evidence before changing the default.
+This solves caller-controlled cost bounding without silently changing existing output. The standalone default remains uncapped. The site integration's `1.5` value is still reference evidence only: changing the standalone default requires real-browser quality/performance evidence at representative densities.
 
 ### F6 — VISUAL PARITY GAP
 
@@ -108,7 +111,7 @@ Still undecided: whether the standalone preview should become a variant-selector
 
 ### F8 — VISUAL EVIDENCE GAP
 
-Node tests prove lifecycle/state ownership but not pixel/browser correctness.
+Node tests prove lifecycle/state/DPR ownership but not pixel/browser correctness.
 
 Required action: add a small browser smoke/evidence path and record exact source SHA, browser, variant/state, viewport/container size, DPR/reduced-motion state and what each capture proves.
 
@@ -116,15 +119,15 @@ Required action: add a small browser smoke/evidence path and record exact source
 
 PR #19 extracts repeated fake global/EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver plumbing into `tests/helpers/canvas-environment.mjs`. Lifecycle, invalid-remount, state, viewport and Arc host-style suites retain their own scenario assertions. The helper is test-only and the refactor changes no production Canvas files.
 
-### F10 — PUBLIC TERMINOLOGY/API CONTRACT IS IMPLICIT
+### F10 — RESOLVED — compact public terminology/API contract
 
-The portable item shape, state vocabulary and lifecycle semantics exist across code, README and issues, but there is no single compact public-contract artifact.
+`docs/public-contract.md` now defines the supported Arc/Spiral entry points, `{ src, title? }` item shape, `loading | ready | error` vocabulary, mount/disposer ownership semantics, activity gates, Arc CSS-variable styling boundary and common `maxDpr` option. It also states that internal renderer tuning constants are not implied public mount options.
 
-Required action: define supported variants, item shape, state vocabulary, lifecycle/disposer semantics and option naming before the TypeScript migration freezes them into types.
+TypeScript/React work must consume this contract rather than infer a new API from implementation details.
 
 ### F11 — TYPESCRIPT/REACT ARE PLANNED ARCHITECTURE, NOT CURRENT DEFECTS
 
-Issues #6/#7 remain future tracks. They must not be pulled forward as incidental cleanup while #5/browser evidence/public contract work is still moving.
+Issues #6/#7 remain future tracks. They must not be pulled forward as incidental cleanup while browser evidence/public variant decisions are still moving.
 
 ### F12 — DEPLOYMENT EVIDENCE GAP
 
@@ -144,7 +147,8 @@ Issues #1/#5 reflect the implemented runtime foundation and the remaining eviden
 - Do not extract a generic production runtime merely because two renderer files duplicate helpers.
 - Shared fake-browser plumbing may live under `tests/helpers/`; production runtime ownership remains module-local until a real product-level reason changes it.
 - Do not add a large test framework while Node's built-in runner can enforce the current contracts.
-- Do not call structural HTML/CSS tests WCAG conformance or pixel-level evidence.
+- Do not call structural HTML/CSS/Node tests browser visual evidence.
+- Do not change the default DPR cap merely because an opt-in `maxDpr` option now exists.
 
 ## Correct workflow for subsequent MOVES work
 
@@ -161,4 +165,4 @@ Issues #1/#5 reflect the implemented runtime foundation and the remaining eviden
 
 ## Audit conclusion
 
-The runtime, verification and test-harness foundations are materially ahead of the original baseline. The next engineering work should define the compact public contract and deliberate DPR policy, then obtain real-browser evidence before additional variants or the TypeScript/React tracks freeze observable behavior into a larger API surface. Publication remains a separate traceability task under #4.
+The runtime, verification, test-harness and public-contract foundations are materially ahead of the original baseline. `maxDpr` gives callers explicit cost control without changing the default. The next evidence-heavy work is real-browser validation for DPR/default policy and future variants; TypeScript/React should consume the now-explicit Vanilla contract, while publication remains a separate traceability task under #4.

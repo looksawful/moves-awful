@@ -1,8 +1,8 @@
 # MOVES AWFUL
 
-Small vanilla JavaScript / Canvas animation playground used to develop reusable visual motion experiments.
+Small vanilla JavaScript / Canvas library and demo for reusable animated image galleries.
 
-Current public preview: https://looksawful.github.io/moves-awful/
+Published GitHub Pages preview: https://looksawful.github.io/moves-awful/
 
 ## Current scope
 
@@ -11,7 +11,26 @@ The repository currently contains two independent Canvas 2D animation modules:
 - **Arc** — rotating image cards distributed along an arc, with card scaling, edge fading and labels.
 - **Spiral** — image cards moving along a spiral with progressive scaling and alpha.
 
-This is intentionally a small Vite project. There is no framework, TypeScript layer, runtime state library or component system.
+Both modules keep bundled demo media but can also accept caller-provided `{ src, title? }` items. This remains an intentionally small Vite project: no framework, TypeScript layer, runtime state library or component system is required by the current Vanilla path.
+
+## Runtime contract
+
+Each module owns its animation lifecycle and currently provides:
+
+- one active lifecycle owner per animation/canvas key;
+- stale async mount protection, including invalid replacement mounts;
+- image loading with URL-level promise caching and placeholder fallback for partial failures;
+- observable `loading`, `ready` and `error` state through `canvas.dataset.galleryState`;
+- DPR-aware Canvas sizing;
+- `requestAnimationFrame` ownership and cleanup;
+- pause/resume behavior for document visibility;
+- static rendering without perpetual RAF work under `prefers-reduced-motion`;
+- `IntersectionObserver` gating so continuous RAF work stops away from the viewport, with a no-observer fallback;
+- explicit disposal and Vite HMR cleanup.
+
+The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc uses the same Inter / 500 / white fallback previously used by the demo runtime.
+
+Do not create a second shared runtime only to remove duplicated helpers unless a real third animation or measured maintenance problem justifies that abstraction.
 
 ## Architecture
 
@@ -25,21 +44,13 @@ canvas-animations/
   assets/
     arc/
     spiral/
+scripts/
+  check-tests.mjs
+  install-vendor-skills.mjs
+tests/
 ```
 
-`index.html` is the preview harness. It mounts each animation and handles HMR disposal during local development.
-
-Each animation module owns:
-
-- its asset list and animation configuration;
-- image loading and caching;
-- DPR-aware Canvas sizing;
-- `requestAnimationFrame` lifecycle;
-- resize and document-visibility handling;
-- `prefers-reduced-motion` state;
-- deterministic disposal and Vite HMR cleanup.
-
-Do not create a second shared runtime only to remove duplicated helpers unless a real third animation or measured maintenance problem justifies that abstraction.
+`index.html` is the preview harness. It mounts each animation and handles HMR disposal during local development. The preview Canvas elements use their existing Arc/Spiral headings as accessible names and fallback text; the preview containers scale down without forcing an oversized minimum width.
 
 ## Arc configuration
 
@@ -57,8 +68,6 @@ Do not create a second shared runtime only to remove duplicated helpers unless a
 | `titleMaxWidth` | maximum label width in card widths |
 | `edgeFadeStart` | edge fade start in normalized space |
 | `edgeFadePower` | edge fade strength |
-
-Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color`.
 
 ## Spiral configuration
 
@@ -80,28 +89,31 @@ npm ci
 npm run dev -- --open
 ```
 
-Available checks:
+Repository checks:
 
 ```bash
 npm run check
+npm test
 npm run build
 ```
 
-`npm run check` performs dependency-free JavaScript syntax checks for both animation modules. The build is the current integration-level project check.
+`npm run check` syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation and the structural demo contract. `npm run build` verifies Vite module resolution and production bundling.
 
-There is currently no dedicated unit or browser test suite and no typecheck or linter. Do not report those checks as passing when they do not exist.
+CI also runs `npm audit --audit-level=high` after a clean install.
+
+There is no dedicated browser-automation suite, linter or typecheck yet. Node tests prove the modeled runtime contracts; they do not prove pixel-level browser appearance.
 
 ## Agent workflow
 
-Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/` and describe the Canvas runtime and verification rules for this codebase.
+Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/` and describe the Canvas runtime and verification rules for this codebase. Reviewed external specialist skills are listed in `skills/vendor/registry.yaml` and are installed only when the task needs them.
 
 ## Deployment
 
-`gh-pages` is the publication branch and `master` is the source branch. Treat `gh-pages` as deployment state, not as a stale feature branch.
+`master` is source and `gh-pages` is publication state. The link above is the published preview; do not assume it matches current `master` until the source-to-Pages path is explicitly verified under #4.
 
 ## Next-stage priorities
 
-1. Keep the two existing animation contracts stable while integrating or extending them.
-2. Add focused behavioral tests only when a stable behavior is worth locking down.
-3. Improve reduced-motion/performance behavior if profiling shows continuous static RAF work is unnecessary.
-4. Extract shared Canvas lifecycle helpers only when reuse is proven by additional modules or maintenance pressure.
+1. Continue #5 by evaluating the remaining portable production-site capabilities with browser evidence: DPR policy and the Horizontal, Diagonal, Showcase Diagonal and Masonry variants.
+2. Complete #6 only after the Vanilla contracts stay stable: strict TypeScript core with a verified Vanilla adapter.
+3. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.
+4. Complete #4 by making the `master` → `gh-pages` publication path reproducible and traceable to a source SHA.

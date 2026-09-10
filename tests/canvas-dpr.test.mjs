@@ -37,6 +37,49 @@ for (const variant of CANVAS_VARIANTS) {
 
       assert.equal(env.canvas.width, env.canvas.clientWidth * 1.5);
       assert.equal(env.canvas.height, env.canvas.clientHeight * 1.5);
+
+      env.canvas.clientWidth = 720;
+      env.canvas.clientHeight = 400;
+      env.triggerResize();
+      assert.equal(env.canvas.width, 720 * 1.5);
+      assert.equal(env.canvas.height, 400 * 1.5);
+
+      dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: maxDpr never lowers effective DPR below 1`, async () => {
+    const env = installCanvasEnvironment({ devicePixelRatio: 3, reducedMotion: true });
+
+    try {
+      const module = await importFresh(variant.moduleUrl);
+      const dispose = await module[variant.mountName](env.canvas.id, {
+        items: [{ src: `https://example.test/${variant.name.toLowerCase()}-min.webp`, title: "Minimum" }],
+        maxDpr: 0.5,
+      });
+
+      assert.equal(env.canvas.width, env.canvas.clientWidth);
+      assert.equal(env.canvas.height, env.canvas.clientHeight);
+      dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
+  test(`${variant.name}: maxDpr above device DPR does not increase backing-store DPR`, async () => {
+    const env = installCanvasEnvironment({ devicePixelRatio: 3, reducedMotion: true });
+
+    try {
+      const module = await importFresh(variant.moduleUrl);
+      const dispose = await module[variant.mountName](env.canvas.id, {
+        items: [{ src: `https://example.test/${variant.name.toLowerCase()}-upper.webp`, title: "Upper" }],
+        maxDpr: 4,
+      });
+
+      assert.equal(env.canvas.width, env.canvas.clientWidth * 3);
+      assert.equal(env.canvas.height, env.canvas.clientHeight * 3);
       dispose();
     } finally {
       env.restore();

@@ -21,15 +21,15 @@ Throughout every task:
 Completed:
 - [x] Task 1 — explicit runtime state merged;
 - [x] Task 2a — verification truth/docs reconciled;
-- [x] Task 2b — dynamic syntax gate now covers every `tests/*.test.mjs` file;
+- [x] Task 2b — recursive test-source syntax gate covers root suites and `tests/helpers/`;
+- [x] Task 2c — ordinary-CI mutation policy guard merged in #15 / PR #17;
 - [x] lifecycle hardening — invalid replacement mounts invalidate older active/pending owners before target validation;
 - [x] Arc host-style isolation — runtime no longer injects global `:root` CSS;
 - [x] basic demo Canvas accessible naming/fallback and narrow-width responsive shell;
-- [x] issue #1/#5 current-state checklists reconciled.
+- [x] issue #1/#5 current-state checklists reconciled;
+- [x] Task 3 — shared test-only Canvas environment implemented on #18 / PR #19 without production runtime changes.
 
 Next engineering checkpoint:
-- [ ] Task 2c — add an executable ordinary-CI mutation policy guard;
-- [ ] Task 3 — extract test-only harness helpers when extending the suite;
 - [ ] Task 4 — compact public contract + deliberate/configurable DPR policy;
 - [ ] Task 7 — minimal browser/visual evidence contract before additional variants or TypeScript migration.
 
@@ -42,30 +42,28 @@ Current contract:
 - partial failures preserve placeholder behavior;
 - stale mounts cannot overwrite current state.
 
-## Task 2 — verification truth and policy contracts — PARTIAL
+## Task 2 — verification truth and policy contracts — COMPLETE
 
-Completed:
+Implemented:
 - README/AGENTS/local skills describe the actual Node behavioral suite and its evidence boundary;
-- `scripts/check-tests.mjs` discovers all `tests/*.test.mjs` files in deterministic order;
-- CI runs clean install, high-severity audit, syntax gate, Node tests and Vite build;
-- ordinary CI currently declares `permissions: contents: read`.
+- `scripts/check-tests.mjs` recursively syntax-checks `.mjs` sources under `tests/`, including shared helpers;
+- CI runs clean install, high-severity audit, syntax/workflow policy gate, Node tests and Vite build;
+- ordinary CI declares `permissions: contents: read`;
+- `scripts/check-workflow-policy.mjs` rejects block/inline write permissions, `permissions: write-all` and `git push` in ordinary workflows;
+- purpose-specific mutation is allowlisted only for exact `deploy.yml`, `deploy.yaml`, `release.yml`, and `release.yaml` filenames.
 
-Remaining executable work:
-1. Add a lightweight repository-contract test/script that rejects write-capable/source-patching/push behavior in ordinary verification workflows.
-2. Allow narrowly scoped write permissions only in explicitly named release/deployment workflows when such workflows exist.
-3. Keep the guard dependency-light and inspectable.
+Acceptance: ordinary verification cannot silently become source-mutating CI without an explicit tested policy change.
 
-Acceptance: ordinary verification cannot silently become source-mutating CI.
-
-## Task 3 — extract test-only environment helpers
+## Task 3 — extract test-only environment helpers — COMPLETE ON PR #19
 
 Files: `tests/helpers/canvas-environment.mjs` plus focused suites.
 
-Steps:
-1. Record current test behavior before refactoring.
-2. Extract only fake EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver utilities that are genuinely repeated.
-3. Keep scenario assertions and intent in individual test files.
-4. Prove identical behavior and no production-runtime change.
+Implemented:
+1. Current green `master` CI was preserved as the refactor baseline.
+2. Repeated fake EventTarget/Canvas/RAF/Image/ResizeObserver/IntersectionObserver/global restore/fresh-import plumbing moved into one test-only helper.
+3. Lifecycle, invalid-remount, state, viewport and Arc host-style suites retain their own scenario assertions and intent.
+4. `scripts/check-tests.mjs` now recursively syntax-checks the helper as well as root suites.
+5. No production Canvas file is changed by the refactor.
 
 Acceptance: less test harness drift without creating a production runtime abstraction.
 

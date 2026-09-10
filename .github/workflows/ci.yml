@@ -29,5 +29,8 @@ jobs:
       - name: Syntax check
         run: npm run check
 
+      - name: Lifecycle tests
+        run: npm test
+
       - name: Build
         run: npm run build

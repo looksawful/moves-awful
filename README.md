@@ -1,17 +1,21 @@
 # MOVES AWFUL
 
-Small vanilla JavaScript / Canvas animation playground used to develop reusable visual motion experiments.
+Small Vite + vanilla JavaScript Canvas 2D library for animated gallery layouts.
 
-Current public preview: https://looksawful.github.io/moves-awful/
+GitHub Pages preview: https://looksawful.github.io/moves-awful/
+
+The Pages URL is publication state. It is not evidence that the deployed branch matches the current `master` source until the traceability work in issue #4 is complete.
 
 ## Current scope
 
-The repository currently contains two independent Canvas 2D animation modules:
+The repository currently contains two independent Canvas 2D gallery variants:
 
 - **Arc** — rotating image cards distributed along an arc, with card scaling, edge fading and labels.
 - **Spiral** — image cards moving along a spiral with progressive scaling and alpha.
 
-This is intentionally a small Vite project. There is no framework, TypeScript layer, runtime state library or component system.
+Both variants keep their built-in demo datasets and can also accept caller-provided items using the portable shape `{ src, title? }`.
+
+This is intentionally a small Vite project. There is no framework, TypeScript core, generic animation engine or shared component runtime.
 
 ## Architecture
 
@@ -25,21 +29,49 @@ canvas-animations/
   assets/
     arc/
     spiral/
+tests/
+  canvas-lifecycle.test.mjs
+  canvas-viewport.test.mjs
+  canvas-state.test.mjs
 ```
 
-`index.html` is the preview harness. It mounts each animation and handles HMR disposal during local development.
+`index.html` is the preview/mount harness. It mounts Arc and Spiral and registers HMR disposal during local development.
 
-Each animation module owns:
+Each animation module currently owns:
 
-- its asset list and animation configuration;
-- image loading and caching;
-- DPR-aware Canvas sizing;
-- `requestAnimationFrame` lifecycle;
+- its default demo dataset and animation configuration;
+- normalization of optional caller-provided gallery items;
+- image loading, failure placeholders and URL-level promise caching;
+- DPR-aware Canvas backing-store sizing;
+- `requestAnimationFrame` ownership;
 - resize and document-visibility handling;
-- `prefers-reduced-motion` state;
-- deterministic disposal and Vite HMR cleanup.
+- `prefers-reduced-motion` static-render behavior;
+- `IntersectionObserver` viewport-proximity gating;
+- observable `loading` / `ready` / `error` state on `canvas.dataset.galleryState`;
+- mount/dispose cleanup and Vite HMR disposal hooks.
 
-Do not create a second shared runtime only to remove duplicated helpers unless a real third animation or measured maintenance problem justifies that abstraction.
+The Node behavioral suite exercises mount/dispose ownership, remounts, stale asynchronous mounts, RAF cancellation/resume, resize, visibility, reduced motion, viewport gating and runtime state. It does not replace real-browser or visual evidence.
+
+Do not extract a shared runtime only to remove duplicated helpers. Shared ownership is justified when another consumer or a concrete maintenance problem makes it safer than the current module-local lifecycle.
+
+## Portable item input
+
+```js
+mountArc("arc", {
+  items: [
+    { src: "/covers/one.webp", title: "One" },
+    { src: "/covers/two.webp", title: "Two" },
+  ],
+});
+```
+
+`mountSpiral` accepts the same item shape. Omitting `items` preserves the built-in demo assets. Invalid entries without `src` are ignored. If no image can be rendered, the Canvas enters `error` state and continuous RAF work does not start. Partial image failure remains renderable through placeholders.
+
+## Runtime activity
+
+Continuous animation runs only while the mounted Canvas is near the viewport, the document is visible and reduced motion is not requested. The viewport observer uses a `50% 0px` root margin and falls back to active behavior when `IntersectionObserver` is unavailable.
+
+Reduced-motion mode stops continuous RAF work and keeps a stable frame that can be redrawn after resize or activity changes.
 
 ## Arc configuration
 
@@ -80,28 +112,33 @@ npm ci
 npm run dev -- --open
 ```
 
-Available checks:
+Current verification chain:
 
 ```bash
+npm ci
+npm audit --audit-level=high
 npm run check
+npm test
 npm run build
 ```
 
-`npm run check` performs dependency-free JavaScript syntax checks for both animation modules. The build is the current integration-level project check.
+`npm run check` performs JavaScript syntax checks. `npm test` runs the dependency-light Node behavioral tests. `npm run build` verifies Vite production bundling and asset/module resolution.
 
-There is currently no dedicated unit or browser test suite and no typecheck or linter. Do not report those checks as passing when they do not exist.
+There is no dedicated real-browser automation suite, screenshot regression gate, linter or TypeScript typecheck yet. A green Node/Vite CI run therefore proves those checks only; it does not prove visual parity or deployed Pages freshness.
 
 ## Agent workflow
 
-Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/` and describe the Canvas runtime and verification rules for this codebase.
+Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/` and define the Canvas runtime and verification contracts for this repository.
 
 ## Deployment
 
-`gh-pages` is the publication branch and `master` is the source branch. Treat `gh-pages` as deployment state, not as a stale feature branch.
+`master` is source and `gh-pages` is publication state. Do not edit `gh-pages` manually during unrelated source work. Issue #4 tracks a traceable source-to-publication path.
 
 ## Next-stage priorities
 
-1. Keep the two existing animation contracts stable while integrating or extending them.
-2. Add focused behavioral tests only when a stable behavior is worth locking down.
-3. Improve reduced-motion/performance behavior if profiling shows continuous static RAF work is unnecessary.
-4. Extract shared Canvas lifecycle helpers only when reuse is proven by additional modules or maintenance pressure.
+1. Complete the selected portable parity work in issue #5 without importing site-only Media Catalog or CMS ownership.
+2. Add real-browser smoke and screenshot evidence for Arc, Spiral, runtime states, reduced motion and viewport activity.
+3. Decide and test a deliberate maximum DPR policy for dense displays.
+4. Resolve traceable `master` → `gh-pages` publication under issue #4.
+5. Start the strict TypeScript core and React adapter tracks only after the current runtime contract and selected parity surface are characterized.
+6. Add further gallery variants only with their own behavioral and visual evidence; do not copy the production-site implementation wholesale.

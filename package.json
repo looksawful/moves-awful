@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "check": "node --check canvas-animations/arc.js && node --check canvas-animations/spiral.js",
     "build": "vite build",
     "preview": "vite preview"
   },

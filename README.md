@@ -46,6 +46,7 @@ canvas-animations/
     spiral/
 scripts/
   check-tests.mjs
+  check-workflow-policy.mjs
   install-vendor-skills.mjs
 tests/
 ```
@@ -97,11 +98,11 @@ npm test
 npm run build
 ```
 
-`npm run check` syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation and the structural demo contract. `npm run build` verifies Vite module resolution and production bundling.
+`npm run check` syntax-checks both Canvas modules, repository helper scripts and every `tests/*.test.mjs` file, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
 
 CI also runs `npm audit --audit-level=high` after a clean install.
 
-There is no dedicated browser-automation suite, linter or typecheck yet. Node tests prove the modeled runtime contracts; they do not prove pixel-level browser appearance.
+There is no dedicated browser-automation suite, linter or typecheck yet. Node tests prove the modeled runtime/contracts; they do not prove pixel-level browser appearance.
 
 ## Agent workflow
 

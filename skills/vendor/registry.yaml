@@ -10,6 +10,7 @@ skills:
   - name: optimize-web-animations
     catalog_id: MengTo/Skills:optimize-web-animations
     repo: https://github.com/MengTo/Skills.git
+    ref: 321c769739b823de5eb94eb3a52aa1974fe783a2
     source_path: agent-skills/codex/optimize-web-animations
     use_for: [raf, canvas-performance, offscreen-work, lifecycle-cleanup, reduced-motion]
     guardrail: Preserve MOVES AWFUL visual contracts and use this as performance guidance, not authority over repository-local lifecycle rules.
@@ -17,6 +18,7 @@ skills:
   - name: accessibility
     catalog_id: addyosmani/web-quality-skills:accessibility
     repo: https://github.com/addyosmani/web-quality-skills.git
+    ref: afa8da942115f2961fdbfa80807ea0b232ff6c00
     source_path: skills/accessibility
     use_for: [wcag, keyboard, reduced-motion, accessible-fallbacks, interaction-audit]
     guardrail: Apply WCAG guidance to the actual Canvas/demo contract; do not invent essential content or product semantics that MOVES AWFUL does not own.
@@ -24,6 +26,7 @@ skills:
   - name: typescript
     catalog_id: lobehub/lobehub:typescript
     repo: https://github.com/lobehub/lobehub.git
+    ref: 906b10e03029648655e0257bda4f785a9e0973f0
     source_path: .agents/skills/typescript
     use_for: [typescript-port, strict-types, public-api-contracts, react-adapter-types]
     guardrail: Use strict type-safety principles only. LobeHub-specific application, React, database, Ant Design, or repository conventions do not apply.

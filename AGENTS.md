@@ -8,6 +8,7 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 2. Read the relevant project skill in `.agents/skills/`.
 3. Inspect the current implementation before editing. Do not infer behavior from names or old notes.
 4. Read `package.json` for the actual scripts and dependency versions.
+5. If the task needs generic specialist guidance, inspect `skills/vendor/registry.yaml` and install only the relevant reviewed vendor skill. Repository-local rules remain authoritative.
 
 ## Repository contracts
 
@@ -27,7 +28,7 @@ This repository is a deliberately small Vite + vanilla JavaScript Canvas project
 - Prefer deleting proven dead code to wrapping it in another layer.
 - A third animation may justify extracting shared Canvas lifecycle helpers; two similar files alone are not sufficient proof.
 - Do not silently replace Canvas 2D with DOM, SVG, WebGL or Three.js.
-- Do not commit generated `dist/`, local logs, IDE state or `node_modules/`.
+- Do not commit generated `dist/`, local logs, IDE state, `node_modules/` or installed `.agents/vendor/` copies.
 - Do not edit `gh-pages` manually unless the task is explicitly deployment repair.
 
 ## Verification
@@ -50,3 +51,15 @@ If a required verification cannot run, record the exact blocker instead of subst
 
 - `.agents/skills/moves-canvas-runtime/SKILL.md` — Canvas lifecycle, assets, performance and visual-runtime work.
 - `.agents/skills/moves-verification/SKILL.md` — checks, regression discipline and release-readiness evidence.
+
+## Installable vendor skills
+
+Use `npm run skills:list` to see the reviewed set. Install only what the task needs with `npm run skills:install -- <skill-name>` when the execution environment allows Git/network access.
+
+Current routes:
+
+- `optimize-web-animations` — RAF/offscreen/performance/lifecycle work;
+- `accessibility` — keyboard, reduced-motion and Canvas accessibility work;
+- `typescript` — strict TypeScript migration and public type contracts.
+
+Installed vendor copies are environment state, not repository source. Do not commit them, and never let generic vendor guidance override this file or the MOVES-specific skills.

@@ -633,6 +633,7 @@ export const mountArc = async (canvasId = "arc-container", options = {}) => {
 
   const key = getAnimationKey(canvasId);
   const mountToken = beginMount(key);
+  canvas.dataset.galleryState = "loading";
   const titleStyle = getTitleStyle(canvas);
 
   await loadTitleFont(titleStyle);
@@ -641,6 +642,14 @@ export const mountArc = async (canvasId = "arc-container", options = {}) => {
   const items = await loadImages(sourceItems);
 
   if (!isCurrentMount(key, mountToken)) {
+    return noop;
+  }
+
+  const hasRenderableItems = items.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableItems ? "ready" : "error";
+
+  if (!hasRenderableItems) {
+    pendingMounts.delete(key);
     return noop;
   }
 

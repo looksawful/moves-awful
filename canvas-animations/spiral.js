@@ -48,6 +48,14 @@ const beginMount = (key) => {
 
 const isCurrentMount = (key, token) => pendingMounts.get(key) === token;
 
+const abortMount = (key, token) => {
+  if (isCurrentMount(key, token)) {
+    pendingMounts.delete(key);
+  }
+
+  return noop;
+};
+
 const completeMount = (key, token, dispose) => () => {
   if (isCurrentMount(key, token)) {
     pendingMounts.delete(key);
@@ -381,21 +389,21 @@ const renderSpiral = ({ ctx, images, time, width, height, reducedMotion }) => {
 };
 
 export const mountSpiral = async (canvasId = "spiral-container", options = {}) => {
+  const key = getAnimationKey(canvasId);
+  const mountToken = beginMount(key);
   const canvas = document.getElementById(canvasId);
   const ctx = canvas?.getContext?.("2d");
 
   if (!canvas) {
     console.error(`Canvas with id "${canvasId}" not found`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
   if (!ctx) {
     console.error(`Failed to get 2d context from canvas "${canvasId}"`);
-    return noop;
+    return abortMount(key, mountToken);
   }
 
-  const key = getAnimationKey(canvasId);
-  const mountToken = beginMount(key);
   canvas.dataset.galleryState = "loading";
   const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : spiralCoverUrls;
   const images = await loadCoverImages(sourceItems);

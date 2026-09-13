@@ -127,6 +127,28 @@ jobs:
           echo "Public marker did not converge to $SOURCE_SHA" >&2
           exit 1
 
+      - name: Verify public generated assets
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          VERIFIED=0
+          while IFS= read -r -d '' FILE; do
+            RELATIVE_PATH="${FILE#dist/}"
+            ASSET_URL="${PUBLIC_URL}${RELATIVE_PATH}?source=${SOURCE_SHA}&run=${GITHUB_RUN_ID}"
+            echo "Checking ${RELATIVE_PATH}"
+            curl -fsS --retry 8 --retry-all-errors --retry-delay 2 --retry-max-time 90 \
+              --connect-timeout 10 --max-time 30 -o /dev/null "$ASSET_URL"
+            VERIFIED=$((VERIFIED + 1))
+          done < <(find dist -type f -print0 | sort -z)
+
+          if [[ "$VERIFIED" -eq 0 ]]; then
+            echo "Production dist tree contained no files to verify" >&2
+            exit 1
+          fi
+          echo "Verified ${VERIFIED} generated public files"
+
       - name: Verify public Arc and Spiral ready state in headless Chrome
         shell: bash
         env:

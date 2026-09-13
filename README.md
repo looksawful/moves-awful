@@ -132,11 +132,13 @@ npm test
 npm run build
 ```
 
-`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist. `npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, DPR option semantics, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. `npm run build` verifies Vite module resolution and production bundling.
+`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist.
 
-CI also runs `npm audit --audit-level=high` after a clean install.
+`npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, DPR option semantics, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. It also verifies that bundled Arc/Spiral asset references resolve to files and that the deployment workflow keeps its traceability and public-smoke contract.
 
-There is no dedicated browser-automation suite, linter or typecheck yet. Node tests prove the modeled runtime/contracts; they do not prove pixel-level browser appearance.
+`npm run build` verifies Vite module resolution and production bundling. CI also runs `npm audit --audit-level=high` after a clean install.
+
+There is no full visual-regression suite, linter or typecheck yet. Node tests prove the modeled runtime/contracts; they do not prove pixel-level browser appearance. The deployment workflow adds a real headless-browser smoke check for the published Arc and Spiral instances, but that smoke is still distinct from screenshot comparison.
 
 ## Agent workflow
 
@@ -144,11 +146,17 @@ Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills
 
 ## Deployment
 
-`master` is source and `gh-pages` is publication state. The link above is the published preview; do not assume it matches current `master` until the source-to-Pages path is explicitly verified under #4.
+`master` is source and `gh-pages` is generated publication state. The canonical publisher is `.github/workflows/deploy.yml`; ordinary source CI does not publish.
+
+Manual publication requires the full 40-character `master` commit SHA. The workflow checks that exact SHA, runs install, high-severity audit, repository checks, Node tests and the production build, then publishes only generated output plus `.nojekyll` and `source-sha.txt`. It preserves `gh-pages` history and never force-pushes publication state.
+
+After publication, the workflow waits for the public `source-sha.txt` to match the selected source commit and uses headless Chrome to require both Arc and Spiral to reach `data-gallery-state="ready"` on the public Pages URL.
+
+See [`docs/deployment.md`](docs/deployment.md) for the release procedure and evidence boundary. A green source CI run alone is not proof that the public preview has been updated.
 
 ## Next-stage priorities
 
-1. Continue #5 by collecting real-browser evidence before selecting any lower default DPR cap and by evaluating Horizontal, Diagonal, Showcase Diagonal and Masonry individually.
-2. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter.
-3. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.
-4. Complete #4 by making the `master` → `gh-pages` publication path reproducible and traceable to a source SHA.
+1. Complete the first end-to-end traceable deployment and retain its source-SHA/public-browser evidence.
+2. Continue #5 with real-browser visual evidence and decide additional variants individually instead of treating them as a mandatory batch.
+3. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter.
+4. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.

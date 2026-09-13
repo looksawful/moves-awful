@@ -31,6 +31,24 @@ test("deployment workflow publishes an explicit master source SHA with traceabil
   assert.doesNotMatch(source, /git\s+push[^\n]*--force/i, "deployment must preserve gh-pages history");
 });
 
+test("public source marker has a bounded propagation budget of at least four minutes", () => {
+  const source = readDeployWorkflow();
+  const attemptsMatch = source.match(/MARKER_MAX_ATTEMPTS:\s*(\d+)/);
+  const delayMatch = source.match(/MARKER_RETRY_DELAY_SECONDS:\s*(\d+)/);
+
+  assert.ok(attemptsMatch, "deployment must declare MARKER_MAX_ATTEMPTS");
+  assert.ok(delayMatch, "deployment must declare MARKER_RETRY_DELAY_SECONDS");
+
+  const attempts = Number(attemptsMatch[1]);
+  const delaySeconds = Number(delayMatch[1]);
+  const budgetSeconds = attempts * delaySeconds;
+
+  assert.ok(budgetSeconds >= 240, `marker propagation budget must be at least 240s, got ${budgetSeconds}s`);
+  assert.ok(budgetSeconds <= 600, `marker propagation budget must stay bounded to 600s, got ${budgetSeconds}s`);
+  expectPattern(source, /seq\s+1\s+"\$MARKER_MAX_ATTEMPTS"/, "marker polling must consume the declared attempt budget");
+  expectPattern(source, /sleep\s+"\$MARKER_RETRY_DELAY_SECONDS"/, "marker polling must consume the declared retry delay");
+});
+
 test("deployment waits for every generated public asset before browser smoke", () => {
   const source = readDeployWorkflow();
   const assetGate = source.indexOf("Verify public generated assets");

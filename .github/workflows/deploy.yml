@@ -140,8 +140,12 @@ jobs:
           fi
 
           PAGE_URL="${PUBLIC_URL}?source=${SOURCE_SHA}"
+          LAST_DOM=""
+          LAST_STDERR=""
+
           for attempt in $(seq 1 5); do
-            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=10000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>/dev/null || true)"
+            STDERR_FILE="$RUNNER_TEMP/moves-awful-chrome-${attempt}.stderr"
+            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=10000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>"$STDERR_FILE" || true)"
             ARC_READY=0
             SPIRAL_READY=0
 
@@ -156,8 +160,19 @@ jobs:
               echo "Public Arc and Spiral both reached data-gallery-state=ready"
               exit 0
             fi
+
+            echo "Attempt ${attempt}: Arc ready=${ARC_READY}, Spiral ready=${SPIRAL_READY}"
+            echo "Serialized Canvas tags:"
+            grep -oE '<canvas[^>]*>' <<<"$DOM" || true
+
+            LAST_DOM="$DOM"
+            LAST_STDERR="$(cat "$STDERR_FILE" 2>/dev/null || true)"
             sleep 2
           done
 
           echo "Public Canvas smoke did not observe ready state for both Arc and Spiral" >&2
+          echo "Final serialized Canvas tags:" >&2
+          grep -oE '<canvas[^>]*>' <<<"$LAST_DOM" >&2 || true
+          echo "Final Chrome stderr (last 80 lines):" >&2
+          tail -n 80 <<<"$LAST_STDERR" >&2 || true
           exit 1

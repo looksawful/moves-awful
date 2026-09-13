@@ -34,7 +34,8 @@ test("deployment workflow publishes an explicit master source SHA with traceabil
 test("deployment workflow verifies the public marker and both Canvas variants", () => {
   const source = readDeployWorkflow();
 
-  expectPattern(source, /looksawful\.github\.io\/moves-awful\/source-sha\.txt/, "deployment must verify the public source marker");
+  expectPattern(source, /PUBLIC_URL:\s*https:\/\/looksawful\.github\.io\/moves-awful\//, "deployment must target the canonical public Pages URL");
+  expectPattern(source, /MARKER_URL=.*source-sha\.txt/, "deployment must verify the public source marker derived from the public URL");
   expectPattern(source, /google-chrome|chromium|chrome/i, "deployment must use a real headless browser for public smoke evidence");
   expectPattern(source, /#arc/, "public smoke must verify Arc");
   expectPattern(source, /#spiral/, "public smoke must verify Spiral");

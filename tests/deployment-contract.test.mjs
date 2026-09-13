@@ -37,7 +37,7 @@ test("deployment workflow verifies the public marker and both Canvas variants", 
   expectPattern(source, /PUBLIC_URL:\s*https:\/\/looksawful\.github\.io\/moves-awful\//, "deployment must target the canonical public Pages URL");
   expectPattern(source, /MARKER_URL=.*source-sha\.txt/, "deployment must verify the public source marker derived from the public URL");
   expectPattern(source, /google-chrome|chromium|chrome/i, "deployment must use a real headless browser for public smoke evidence");
-  expectPattern(source, /#arc/, "public smoke must verify Arc");
-  expectPattern(source, /#spiral/, "public smoke must verify Spiral");
+  expectPattern(source, /id=\\?"arc\\?"/, "public smoke must verify Arc by DOM id");
+  expectPattern(source, /id=\\?"spiral\\?"/, "public smoke must verify Spiral by DOM id");
   expectPattern(source, /galleryState|data-gallery-state/, "public smoke must wait for the Canvas ready state");
 });

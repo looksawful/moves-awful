@@ -33,7 +33,7 @@ A failed gate stops publication.
 
 ## Initial workflow proof
 
-A push to `master` triggers this deployment workflow only when `.github/workflows/deploy.yml` itself changes. This exists so the first merged deployment workflow can prove the entire path. Ordinary source commits do not auto-deploy.
+A push to `master` triggers this deployment workflow only when `.github/workflows/deploy.yml` itself changes. This exists so changes to the publisher can prove the entire path. Ordinary source commits do not auto-deploy.
 
 ## Post-publication verification
 
@@ -43,9 +43,11 @@ After pushing `gh-pages`, the workflow waits for:
 
 to match the selected source SHA.
 
-It then opens the public preview in headless Chrome and requires both `#arc` and `#spiral` canvases to reach `data-gallery-state="ready"`.
+The source marker alone is not enough: Pages/CDN propagation can expose the new marker before every hashed JS/CSS/WebP file is consistently available. The workflow therefore enumerates every file from the exact production `dist/` tree and requires each corresponding public URL to become reachable, with bounded retries, before browser smoke begins.
 
-This public smoke proves that the deployed modules and bundled media initialize in a real browser. It is not pixel-level visual-regression evidence.
+Only after the generated asset set is public does the workflow open the preview in headless Chrome and require both `#arc` and `#spiral` canvases to reach `data-gallery-state="ready"`. On failure it reports the serialized Canvas state and Chrome diagnostics without weakening the readiness requirement.
+
+This public smoke proves that the deployed modules and bundled image media initialize in a real browser. It is not pixel-level visual-regression evidence.
 
 ## Release evidence
 
@@ -56,6 +58,7 @@ A release record should include:
 - deployment workflow run;
 - resulting `gh-pages` commit;
 - public `source-sha.txt` value;
+- generated-public-asset gate result;
 - public Arc/Spiral browser-smoke result.
 
 Do not describe a release as published merely because `master` CI is green.

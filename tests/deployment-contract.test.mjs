@@ -31,6 +31,18 @@ test("deployment workflow publishes an explicit master source SHA with traceabil
   assert.doesNotMatch(source, /git\s+push[^\n]*--force/i, "deployment must preserve gh-pages history");
 });
 
+test("deployment waits for every generated public asset before browser smoke", () => {
+  const source = readDeployWorkflow();
+  const assetGate = source.indexOf("Verify public generated assets");
+  const browserGate = source.indexOf("Verify public Arc and Spiral ready state in headless Chrome");
+
+  assert.ok(assetGate >= 0, "deployment must include a generated-asset propagation gate");
+  assert.ok(browserGate > assetGate, "generated assets must be verified before browser smoke");
+  expectPattern(source, /find\s+dist\s+-type\s+f/, "asset gate must derive its targets from the production dist tree");
+  expectPattern(source, /RELATIVE_PATH/, "asset gate must preserve each generated relative path");
+  expectPattern(source, /curl\s+-fsS[\s\S]*--retry/, "asset gate must retry transient public propagation failures");
+});
+
 test("deployment workflow verifies the public marker and both Canvas variants", () => {
   const source = readDeployWorkflow();
 

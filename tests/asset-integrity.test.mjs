@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import test from "node:test";
-import { dirname, fileURLToPath, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const modules = [

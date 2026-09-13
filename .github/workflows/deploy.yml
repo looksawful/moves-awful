@@ -25,6 +25,8 @@ jobs:
     timeout-minutes: 15
     env:
       PUBLIC_URL: https://looksawful.github.io/moves-awful/
+      MARKER_MAX_ATTEMPTS: 150
+      MARKER_RETRY_DELAY_SECONDS: 2
     steps:
       - name: Checkout repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -116,15 +118,15 @@ jobs:
         run: |
           set -euo pipefail
           MARKER_URL="${PUBLIC_URL}source-sha.txt"
-          for attempt in $(seq 1 30); do
+          for attempt in $(seq 1 "$MARKER_MAX_ATTEMPTS"); do
             ACTUAL="$(curl -fsS "${MARKER_URL}?run=${GITHUB_RUN_ID}&attempt=${attempt}" 2>/dev/null | tr -d '\r\n' || true)"
             if [[ "$ACTUAL" == "$SOURCE_SHA" ]]; then
-              echo "Public marker matches $SOURCE_SHA"
+              echo "Public marker matches $SOURCE_SHA on attempt $attempt"
               exit 0
             fi
-            sleep 2
+            sleep "$MARKER_RETRY_DELAY_SECONDS"
           done
-          echo "Public marker did not converge to $SOURCE_SHA" >&2
+          echo "Public marker did not converge to $SOURCE_SHA within $((MARKER_MAX_ATTEMPTS * MARKER_RETRY_DELAY_SECONDS)) seconds" >&2
           exit 1
 
       - name: Verify public generated assets

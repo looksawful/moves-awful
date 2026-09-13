@@ -35,13 +35,16 @@
 - Consumes: current `npm ci`, `npm run check`, `npm test`, `npm run build`; `gh-pages` as publication state.
 - Produces: manual `workflow_dispatch` publication of an explicit full `source_sha`, `source-sha.txt` in Pages output, preserved `gh-pages` history and a public Arc/Spiral smoke check.
 
-- [ ] **Step 1: Write the failing deployment-contract test.**
-  Assert that `deploy.yml` exists and contains: required `workflow_dispatch.inputs.source_sha`; exact-SHA checkout/verification; `npm ci`, high-severity audit, check, test and build; generated `dist` publication only; `.nojekyll`; `source-sha.txt`; non-force push to `gh-pages`; public marker polling; headless browser check for both `#arc` and `#spiral` reaching `data-gallery-state="ready"`.
-- [ ] **Step 2: Run CI on the test-only commit and confirm RED because `deploy.yml` is absent.**
-- [ ] **Step 3: Implement the minimal deployment workflow.**
-  Use `contents: write`, explicit source SHA validation against `origin/master`, detached exact checkout, build, isolated publication worktree, normal push preserving history, public marker polling and Chrome-based smoke verification.
-- [ ] **Step 4: Add deployment documentation and reconcile README/AGENTS wording.**
-- [ ] **Step 5: Run branch CI and require install, audit, syntax/workflow policy, all Node tests and Vite build to pass.**
+- [x] **Step 1: Write the failing deployment-contract test.**
+  `tests/deployment-contract.test.mjs` defines the source-SHA, verification, publication and public-smoke contract.
+- [x] **Step 2: Run CI on the test-only commit and confirm RED because `deploy.yml` is absent.**
+  PR #23 Actions run `34747366410` failed only the two new deployment tests; the existing 55 tests remained green.
+- [x] **Step 3: Implement the minimal deployment workflow.**
+  `.github/workflows/deploy.yml` uses explicit source SHA validation, exact detached checkout, full source gates, generated-output publication, normal `gh-pages` push, public marker polling and Chrome readiness smoke.
+- [x] **Step 4: Add deployment documentation and reconcile README/AGENTS wording.**
+  `docs/deployment.md`, README and AGENTS now distinguish source CI, deployment and pixel-level visual evidence.
+- [x] **Step 5: Run branch CI and require install, audit, syntax/workflow policy, all Node tests and Vite build to pass.**
+  PR #23 Actions run `34747671012` completed successfully after the final documentation pass.
 - [ ] **Step 6: Merge only after green PR evidence.**
 - [ ] **Step 7: Verify the real deployment run and public source marker before closing #4.**
 
@@ -65,16 +68,18 @@
 ### Task 3: Asset/media integrity gate
 
 **Files:**
-- Test: focused repository test under `tests/`.
+- Test: `tests/asset-integrity.test.mjs`.
 - Modify production files only if the test proves a concrete broken reference.
 
 **Interfaces:**
 - Consumes: bundled Arc/Spiral asset declarations and Vite URL resolution.
 - Produces: deterministic proof that every bundled default media reference exists and no default dataset silently points at removed assets.
 
-- [ ] Write a failing-first integrity test only if a broken/missing reference is found; otherwise add a characterization check without changing asset selection.
-- [ ] Confirm Vite build still emits all referenced bundled media.
-- [ ] Do not rename/recompress/replace visual assets as incidental cleanup.
+- [x] Add a characterization test that resolves every local bundled `new URL("./assets/...")` reference from Arc and Spiral and fails on a missing file.
+- [x] Confirm the asset test and production Vite build are green in PR #23 Actions run `34747671012`.
+- [x] Preserve existing asset selection: this release-hardening PR does not rename, recompress or replace renderer media.
+
+Standalone MOVES contains no audio playback pipeline or audio-file references. The release media gate therefore protects the bundled Canvas image media owned by this repository; audio/music playback must be verified in any downstream product that owns it rather than invented as a standalone MOVES contract.
 
 ### Task 4: Close portable parity scope (#5)
 

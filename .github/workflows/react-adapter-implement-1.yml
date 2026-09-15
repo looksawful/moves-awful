@@ -1,0 +1,300 @@
+name: react-adapter-implement-1
+
+on:
+  push:
+    branches:
+      - feat/react-adapter-7
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/react-adapter-7
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Implement direct Canvas mount boundary and React adapter
+        run: |
+          python <<'PY'
+          from pathlib import Path
+          import re
+
+          types = Path('canvas-animations/core/types.ts')
+          text = types.read_text()
+          marker = 'export type MountDisposer = () => void;\n'
+          insert = marker + '\nexport interface CanvasMountControl {\n  signal?: AbortSignal;\n}\n'
+          if 'export interface CanvasMountControl' not in text:
+              if text.count(marker) != 1:
+                  raise SystemExit('types.ts MountDisposer marker mismatch')
+              text = text.replace(marker, insert, 1)
+          types.write_text(text)
+
+          def patch_module(path, variant):
+              p = Path(path)
+              source = p.read_text()
+              if 'CanvasMountControl,' not in source:
+                  source = source.replace('  CanvasAnimationOptions,\n', '  CanvasAnimationOptions,\n  CanvasMountControl,\n', 1)
+
+              if variant == 'arc':
+                  prefix = 'ARC_KEY_PREFIX'
+                  mount_name = 'mountArc'
+                  direct_name = 'mountArcCanvas'
+                  options_type = 'ArcMountOptions'
+                  load_expr = 'const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;\n  const items = await loadImages(sourceItems);'
+                  ready_block = '''const hasRenderableItems = items.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableItems ? "ready" : "error";
+  if (!hasRenderableItems) {
+    pendingMounts.delete(key);
+    return noop;
+  }
+
+  const dispose = createCanvasAnimation({
+    key,
+    canvas,
+    ctx,
+    maxDpr: options.maxDpr,
+    renderFrame: ({ time, width, height, reducedMotion }) =>
+      renderArc({ ctx, items, titleStyle, time, width, height, reducedMotion }),
+  });'''
+                  pre_load = 'const titleStyle = getTitleStyle(canvas);\n  '
+                  label_error = 'Failed to get 2d context from canvas element'
+              else:
+                  prefix = 'SPIRAL_KEY_PREFIX'
+                  mount_name = 'mountSpiral'
+                  direct_name = 'mountSpiralCanvas'
+                  options_type = 'SpiralMountOptions'
+                  load_expr = '''const sourceItems: readonly (string | SourceItem)[] = Array.isArray(options.items)
+    ? normalizeItems(options.items)
+    : spiralCoverUrls;
+  const images = await loadCoverImages(sourceItems);'''
+                  ready_block = '''const hasRenderableImages = images.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableImages ? "ready" : "error";
+  if (!hasRenderableImages) {
+    pendingMounts.delete(key);
+    return noop;
+  }
+
+  const dispose = createCanvasAnimation({
+    key,
+    canvas,
+    ctx,
+    maxDpr: options.maxDpr,
+    renderFrame: ({ time, width, height, reducedMotion }) =>
+      renderSpiral({ ctx, images, time, width, height, reducedMotion }),
+  });'''
+                  pre_load = ''
+                  label_error = 'Failed to get 2d context from canvas element'
+
+              pattern = re.compile(rf'export const {mount_name} = async \([\s\S]*?\n\}};\n\nif \(import\.meta\.hot\) \{{')
+              match = pattern.search(source)
+              if not match:
+                  raise SystemExit(f'{path}: mount block not found')
+
+              element_name = f'{variant}ElementKeys'
+              counter_name = f'next{variant.capitalize()}ElementKey'
+              get_key_name = f'get{variant.capitalize()}ElementAnimationKey'
+              target_name = f'mount{variant.capitalize()}Target'
+
+              replacement = f'''const {element_name} = new WeakMap<HTMLCanvasElement, string>();
+let {counter_name} = 1;
+
+const {get_key_name} = (canvas: HTMLCanvasElement): string => {{
+  const existing = {element_name}.get(canvas);
+  if (existing) return existing;
+  const key = `${{{prefix}}}element-${{{counter_name}++}}`;
+  {element_name}.set(canvas, key);
+  return key;
+}};
+
+interface {variant.capitalize()}MountTarget {{
+  canvas: HTMLCanvasElement;
+  key: string;
+  mountToken: symbol;
+  options: {options_type};
+  signal?: AbortSignal;
+  errorLabel: string;
+}}
+
+const {target_name} = async ({{
+  canvas,
+  key,
+  mountToken,
+  options,
+  signal,
+  errorLabel,
+}}: {variant.capitalize()}MountTarget): Promise<MountDisposer> => {{
+  if (signal?.aborted) return abortMount(key, mountToken);
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {{
+    console.error(`Failed to get 2d context from ${{errorLabel}}`);
+    return abortMount(key, mountToken);
+  }}
+
+  canvas.dataset.galleryState = "loading";
+  {pre_load}{load_expr}
+
+  if (signal?.aborted) return abortMount(key, mountToken);
+  if (!isCurrentMount(key, mountToken)) return noop;
+
+  {ready_block}
+
+  if (signal?.aborted) {{
+    dispose();
+    return abortMount(key, mountToken);
+  }}
+
+  return completeMount(key, mountToken, dispose);
+}};
+
+export const {direct_name} = async (
+  canvas: HTMLCanvasElement,
+  options: {options_type} = {{}},
+  control: CanvasMountControl = {{}},
+): Promise<MountDisposer> => {{
+  const key = {get_key_name}(canvas);
+  const mountToken = beginMount(key);
+  return {target_name}({{
+    canvas,
+    key,
+    mountToken,
+    options,
+    signal: control.signal,
+    errorLabel: "canvas element",
+  }});
+}};
+
+export const {mount_name} = async (
+  canvasId = "{variant}-container",
+  options: {options_type} = {{}},
+): Promise<MountDisposer> => {{
+  const key = getAnimationKey(canvasId);
+  const mountToken = beginMount(key);
+  const canvas = globalThis.document?.getElementById(canvasId) as HTMLCanvasElement | null | undefined;
+
+  if (!canvas) {{
+    console.error(`Canvas with id "${{canvasId}}" not found`);
+    return abortMount(key, mountToken);
+  }}
+
+  return {target_name}({{
+    canvas,
+    key,
+    mountToken,
+    options,
+    errorLabel: `canvas "${{canvasId}}"`,
+  }});
+}};
+
+if (import.meta.hot) {{'''
+              source = source[:match.start()] + replacement + source[match.end():]
+              p.write_text(source)
+
+          patch_module('canvas-animations/arc.ts', 'arc')
+          patch_module('canvas-animations/spiral.ts', 'spiral')
+
+          react_dir = Path('react')
+          react_dir.mkdir(exist_ok=True)
+          react_dir.joinpath('index.ts').write_text('''import {
+  createElement,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useRef,
+  type CanvasHTMLAttributes,
+  type ForwardedRef,
+  type MutableRefObject,
+} from "react";
+
+import { mountArcCanvas } from "../canvas-animations/arc.ts";
+import { mountSpiralCanvas } from "../canvas-animations/spiral.ts";
+import type {
+  GalleryItem,
+  GalleryVariantOptions,
+  MountDisposer,
+} from "../canvas-animations/core/types.ts";
+
+export type MovesCanvasVariant = GalleryVariantOptions["variant"];
+
+export interface MovesCanvasProps
+  extends Omit<CanvasHTMLAttributes<HTMLCanvasElement>, "children"> {
+  variant: MovesCanvasVariant;
+  items?: GalleryItem[];
+  maxDpr?: number;
+}
+
+const noop: MountDisposer = () => {};
+
+const assignRef = (
+  ref: ForwardedRef<HTMLCanvasElement>,
+  value: HTMLCanvasElement | null,
+): void => {
+  if (typeof ref === "function") {
+    ref(value);
+    return;
+  }
+  if (ref) (ref as MutableRefObject<HTMLCanvasElement | null>).current = value;
+};
+
+export const MovesCanvas = forwardRef<HTMLCanvasElement, MovesCanvasProps>(
+  function MovesCanvas({ variant, items, maxDpr, ...canvasProps }, forwardedRef) {
+    const canvasRef = useRef<HTMLCanvasElement | null>(null);
+    const setCanvasRef = useCallback(
+      (canvas: HTMLCanvasElement | null) => {
+        canvasRef.current = canvas;
+        assignRef(forwardedRef, canvas);
+      },
+      [forwardedRef],
+    );
+
+    useEffect(() => {
+      const canvas = canvasRef.current;
+      if (!canvas) return undefined;
+
+      const controller = new AbortController();
+      let cleaned = false;
+      let dispose: MountDisposer = noop;
+      const options = { items, maxDpr };
+      const mount = variant === "arc" ? mountArcCanvas : mountSpiralCanvas;
+
+      void mount(canvas, options, { signal: controller.signal }).then((nextDispose) => {
+        if (cleaned) {
+          nextDispose();
+          return;
+        }
+        dispose = nextDispose;
+      });
+
+      return () => {
+        cleaned = true;
+        controller.abort();
+        dispose();
+      };
+    }, [variant, items, maxDpr]);
+
+    return createElement("canvas", { ...canvasProps, ref: setCanvasRef });
+  },
+);
+''')
+          PY
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Commit implementation and remove one-shot runner
+        run: |
+          rm .github/workflows/react-adapter-implement-1.yml
+          git config user.name "moves-awful automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add canvas-animations/core/types.ts canvas-animations/arc.ts canvas-animations/spiral.ts react/index.ts .github/workflows/react-adapter-implement-1.yml
+          git commit -m "feat: add minimal StrictMode-safe React Canvas adapter"
+          git push origin HEAD:feat/react-adapter-7

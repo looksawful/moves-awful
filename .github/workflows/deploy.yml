@@ -124,7 +124,7 @@ jobs:
               echo "Public marker matches $SOURCE_SHA on attempt $attempt"
               exit 0
             fi
-            sleep "$MARKER_RETRY_DELAY_SECONDS"
+            sleep 2
           done
           echo "Public marker did not converge to $SOURCE_SHA within $((MARKER_MAX_ATTEMPTS * MARKER_RETRY_DELAY_SECONDS)) seconds" >&2
           exit 1
@@ -169,7 +169,7 @@ jobs:
 
           for attempt in $(seq 1 5); do
             STDERR_FILE="$RUNNER_TEMP/moves-awful-chrome-${attempt}.stderr"
-            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=10000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>"$STDERR_FILE" || true)"
+            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=30000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>"$STDERR_FILE" || true)"
             ARC_READY=0
             SPIRAL_READY=0
 

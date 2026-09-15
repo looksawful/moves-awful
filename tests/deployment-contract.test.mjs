@@ -61,6 +61,20 @@ test("deployment waits for every generated public asset before browser smoke", (
   expectPattern(source, /curl\s+-fsS[\s\S]*--retry/, "asset gate must retry transient public propagation failures");
 });
 
+test("deployment waits for coherent public entrypoint bytes before browser smoke", () => {
+  const source = readDeployWorkflow();
+  const coherenceGate = source.indexOf("Verify public entrypoint coherence");
+  const browserGate = source.indexOf("Verify public Arc and Spiral ready state in headless Chrome");
+
+  assert.ok(coherenceGate >= 0, "deployment must include a public entrypoint coherence gate");
+  assert.ok(browserGate > coherenceGate, "public entrypoint coherence must be proven before browser smoke");
+  expectPattern(source, /sha256sum\s+dist\/index\.html/, "coherence gate must hash the freshly built index.html");
+  expectPattern(source, /PUBLIC_INDEX_SHA/, "coherence gate must hash the cache-busted public index.html");
+  expectPattern(source, /EXPECTED_ENTRY/, "coherence gate must derive the expected hashed JS entry from dist/index.html");
+  expectPattern(source, /PUBLIC_ENTRY_SHA/, "coherence gate must compare public entry-module bytes with the fresh build");
+  expectPattern(source, /COHERENCE_MAX_ATTEMPTS/, "coherence gate must have a bounded retry budget for Pages propagation");
+});
+
 test("deployment workflow verifies the public marker and both Canvas variants", () => {
   const source = readDeployWorkflow();
 

@@ -81,6 +81,9 @@ jobs:
       - name: Repository checks
         run: npm run check
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Behavioral tests
         run: npm test
 

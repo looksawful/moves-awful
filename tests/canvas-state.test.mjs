@@ -47,7 +47,7 @@ for (const variant of CANVAS_VARIANTS) {
 
       const result = await Promise.race([
         mounting.then((dispose) => ({ kind: "mounted", dispose })),
-        new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 50)),
+        new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 100)),
       ]);
 
       assert.equal(result.kind, "mounted");

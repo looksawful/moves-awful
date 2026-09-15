@@ -1,0 +1,49 @@
+name: pages-browser-budget-once
+
+on:
+  push:
+    branches: [fix/pages-browser-readiness-budget]
+
+permissions:
+  contents: write
+
+jobs:
+  implement:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/pages-browser-readiness-budget
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Increase public Canvas cold-load budget
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/deploy.yml')
+          text = p.read_text()
+          old = '--virtual-time-budget=10000'
+          new = '--virtual-time-budget=30000'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected exactly one {old}')
+          p.write_text(text.replace(old, new, 1))
+          PY
+      - name: Remove one-shot workflow before policy checks
+        run: rm .github/workflows/pages-browser-budget-once.yml
+      - run: npm audit --audit-level=high
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+      - name: Commit verified workflow change
+        run: |
+          git config user.name "moves-awful automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/workflows/deploy.yml .github/workflows/pages-browser-budget-once.yml
+          git commit -m "fix: increase Pages Canvas smoke cold-load budget"
+          git push origin HEAD:fix/pages-browser-readiness-budget

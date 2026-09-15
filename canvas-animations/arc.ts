@@ -245,12 +245,9 @@ const loadImage = (imageUrl: string): Promise<HTMLImageElement> => {
     }
     const image = new ImageConstructor();
     image.decoding = "async";
-    image.onload = async () => {
-      try {
-        await image.decode?.();
-      } catch {
-        // Cached or animated images can still be drawable after decode rejection.
-      }
+    image.onload = () => {
+      // `load` already means the image is drawable. `decode()` is optional
+      // optimization work and must never block gallery readiness.
       resolve(image);
     };
     image.onerror = () => reject(new Error(`Failed to load image: ${imageUrl}`));

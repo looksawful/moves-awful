@@ -539,20 +539,6 @@ const getTitleStyle = (canvas) => {
   };
 };
 
-const loadTitleFont = async ({ fontFamily, fontWeight }) => {
-  const fonts = globalThis.document?.fonts;
-
-  if (!fonts?.load) {
-    return;
-  }
-
-  try {
-    await fonts.load(`${fontWeight} 16px ${fontFamily}`);
-  } catch (error) {
-    console.warn("Arc font load failed, using fallback font.", error);
-  }
-};
-
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 
 const renderArc = ({ ctx, items, titleStyle, time, width, height, reducedMotion }) => {
@@ -635,8 +621,6 @@ export const mountArc = async (canvasId = "arc-container", options = {}) => {
 
   canvas.dataset.galleryState = "loading";
   const titleStyle = getTitleStyle(canvas);
-
-  await loadTitleFont(titleStyle);
 
   const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;
   const items = await loadImages(sourceItems);

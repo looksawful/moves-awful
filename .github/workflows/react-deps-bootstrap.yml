@@ -1,0 +1,47 @@
+name: react-deps-bootstrap
+
+on:
+  push:
+    branches:
+      - feat/react-adapter-7
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: feat/react-adapter-7
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install React adapter development dependencies
+        run: npm install --save-dev react react-dom @types/react @types/react-dom jsdom
+      - name: Declare React runtime as peer-only public dependency
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          pkg.peerDependencies = {
+            ...(pkg.peerDependencies || {}),
+            react: '>=19 <20',
+            'react-dom': '>=19 <20'
+          };
+          fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          NODE
+          npm install --package-lock-only
+      - name: Remove one-shot workflow and commit lockfile
+        run: |
+          rm .github/workflows/react-deps-bootstrap.yml
+          git config user.name "moves-awful automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add package.json package-lock.json .github/workflows/react-deps-bootstrap.yml
+          git commit -m "chore: add React adapter development dependencies"
+          git push origin HEAD:feat/react-adapter-7

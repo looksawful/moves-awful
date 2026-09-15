@@ -1,23 +1,28 @@
 # MOVES AWFUL
 
-Small vanilla JavaScript / Canvas library and demo for reusable animated image galleries.
+Small TypeScript + vanilla JavaScript Canvas library and demo for reusable animated image galleries.
 
 Published GitHub Pages preview: https://looksawful.github.io/moves-awful/
 
 ## Current scope
 
-The repository currently contains two independent Canvas 2D animation modules:
+The repository contains two public Canvas 2D gallery variants:
 
 - **Arc** — rotating image cards distributed along an arc, with card scaling, edge fading and labels.
 - **Spiral** — image cards moving along a spiral with progressive scaling and alpha.
 
-Both modules keep bundled demo media but can also accept caller-provided `{ src, title? }` items. This remains an intentionally small Vite project: no framework, TypeScript layer, runtime state library or component system is required by the current Vanilla path.
+The canonical renderer implementations are strict TypeScript in `canvas-animations/arc.ts` and `canvas-animations/spiral.ts`. The historical public JavaScript entry points remain stable as thin compatibility adapters:
 
-The compact supported consumer API is defined in [`docs/public-contract.md`](docs/public-contract.md). Future TypeScript/React work should consume that contract rather than infer public API from internal renderer constants.
+- `canvas-animations/arc.js` → `mountArc`;
+- `canvas-animations/spiral.js` → `mountSpiral`.
+
+Both variants keep bundled demo media but can also accept caller-provided `{ src, title? }` items. There is still no framework, generic animation engine or React dependency in the core/Vanilla path.
+
+The compact supported consumer API is defined in [`docs/public-contract.md`](docs/public-contract.md). Architecture migrations must consume that contract rather than redefine it from internal renderer constants.
 
 ## Runtime contract
 
-Each module owns its animation lifecycle and currently provides:
+Each variant currently provides:
 
 - one active lifecycle owner per animation/canvas key;
 - stale async mount protection, including invalid replacement mounts;
@@ -30,11 +35,9 @@ Each module owns its animation lifecycle and currently provides:
 - `IntersectionObserver` gating so continuous RAF work stops away from the viewport, with a no-observer fallback;
 - explicit disposal and Vite HMR cleanup.
 
-`maxDpr` is opt-in. Omitting it preserves the current device-DPR behavior; a finite positive value caps backing-store DPR while never lowering effective DPR below `1`. Invalid values are ignored. The standalone default remains unchanged deliberately: changing it requires a new visual/performance justification rather than parity with the production site by itself.
+`maxDpr` is opt-in. Omitting it preserves device-DPR behavior; a finite positive value caps backing-store DPR while never lowering effective DPR below `1`. Invalid values are ignored. The standalone default remains unchanged deliberately.
 
-The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc uses the same Inter / 500 / white fallback previously used by the demo runtime. Arc mount also does not block image startup on host-managed font readiness.
-
-Do not create a second shared runtime only to remove duplicated helpers unless a real third animation or measured maintenance problem justifies that abstraction.
+The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc keeps its established renderer-local fallbacks. Arc mount does not block image startup on host-managed font readiness.
 
 ## Architecture
 
@@ -42,9 +45,14 @@ Do not create a second shared runtime only to remove duplicated helpers unless a
 index.html
 style.css
 vite.config.js
+tsconfig.json
 canvas-animations/
-  arc.js
-  spiral.js
+  arc.js            # stable JS compatibility export
+  arc.ts            # canonical Arc implementation
+  spiral.js         # stable JS compatibility export
+  spiral.ts         # canonical Spiral implementation
+  core/
+    types.ts         # shared public/runtime type contracts
   assets/
     arc/
     spiral/
@@ -57,9 +65,9 @@ tests/
     canvas-environment.mjs
 ```
 
-`index.html` is the preview harness. It mounts each animation and handles HMR disposal during local development. The preview Canvas elements use their existing Arc/Spiral headings as accessible names and fallback text; the preview containers scale down without forcing an oversized minimum width.
+The shared TypeScript layer currently contains contracts/types, not a speculative generic renderer runtime. Arc and Spiral may still duplicate small implementation details when that keeps ownership clearer and safer.
 
-The Canvas behavioral suites share only test-environment plumbing through `tests/helpers/canvas-environment.mjs`. Scenario assertions stay in focused test files; this helper is not a production runtime abstraction.
+`index.html` remains the preview harness. It imports the stable `.js` entry points, mounts both variants and handles HMR disposal during local development. Tests that require fresh module state import the canonical `.ts` modules directly so a compatibility wrapper cannot accidentally share a cached module instance between isolated scenarios.
 
 ## Mount options
 
@@ -83,38 +91,6 @@ const dispose = await mountArc("arc", {
 
 See [`docs/public-contract.md`](docs/public-contract.md) for lifecycle, state, validation and DPR semantics.
 
-## Arc authored parameters
-
-These values describe the current internal renderer tuning; they are not implied mount-option keys.
-
-| Parameter | Description |
-| --- | --- |
-| `slots` | visible cards on the arc |
-| `speed` | animation speed |
-| `radiusScale` | arc radius relative to canvas size |
-| `cardBaseScale` | base card size |
-| `cardMinScale` | minimum edge scale |
-| `cardMaxBonus` | focus scale multiplier |
-| `cardFocusPower` | focus falloff sharpness |
-| `titleScale` | label font size relative to card |
-| `titleOffsetY` | label vertical offset |
-| `titleMaxWidth` | maximum label width in card widths |
-| `edgeFadeStart` | edge fade start in normalized space |
-| `edgeFadePower` | edge fade strength |
-
-## Spiral authored parameters
-
-These values describe the current internal renderer tuning; they are not implied mount-option keys.
-
-| Parameter | Description |
-| --- | --- |
-| `speed` | animation speed |
-| `turns` | spiral turn count |
-| `cardScale` | base card size |
-| `cardGrowthScale` | growth toward the outside of the trajectory |
-| `radiusScale` | spiral radius relative to canvas size |
-| `alphaScale` | alpha ramp along the trajectory |
-
 ## Development
 
 ```bash
@@ -128,40 +104,39 @@ Repository checks:
 
 ```bash
 npm run check
+npm run typecheck
 npm test
 npm run build
 ```
 
-`npm run check` syntax-checks both Canvas modules, repository helper scripts and all `.mjs` test sources under `tests/` recursively, then validates checked-in GitHub Actions workflows against the repository workflow policy. Ordinary verification workflows may not request write permissions or run `git push`; purpose-specific `deploy.*` and `release.*` workflows are the only explicit mutation allowlist.
+`npm run check` syntax-checks the JavaScript compatibility entries, repository helper scripts and test sources, then validates checked-in GitHub Actions workflows against the repository workflow policy.
 
-`npm test` runs the dependency-free Node regression suite covering mount/dispose behavior, invalid remounts, visibility, reduced motion, viewport gating, runtime state, DPR option semantics, Arc host-style isolation, structural demo contracts and workflow-policy fixtures. It also verifies that bundled Arc/Spiral asset references resolve to files and that the deployment workflow keeps its traceability and public-smoke contract.
+`npm run typecheck` runs strict TypeScript with `noEmit`. The canonical Canvas modules and shared type contracts must remain type-safe without `any`.
+
+`npm test` runs the Node regression suite covering mount/dispose behavior, invalid remounts, stale async ownership, visibility, reduced motion, viewport gating, runtime state, DPR option semantics, Arc host-style isolation, structural demo contracts, workflow-policy fixtures, asset integrity and the TypeScript architecture contract.
 
 `npm run build` verifies Vite module resolution and production bundling. CI also runs `npm audit --audit-level=high` after a clean install.
 
-There is no full visual-regression suite, linter or typecheck yet. Node tests prove the modeled runtime/contracts; they do not prove pixel-level browser appearance. The deployment workflow adds a real headless-browser smoke check for the published Arc and Spiral instances, but that smoke is still distinct from screenshot comparison.
+There is no full screenshot/pixel visual-regression suite or linter. Node tests and strict typecheck prove their modeled contracts; they do not prove pixel-level browser appearance. The deployment workflow adds real headless-browser readiness smoke for the published Arc and Spiral instances.
 
 ## Agent workflow
 
-Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/` and describe the Canvas runtime and verification rules for this codebase. Reviewed external specialist skills are listed in `skills/vendor/registry.yaml` and are installed only when the task needs them.
+Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills/`. Reviewed external specialist skills are listed in `skills/vendor/registry.yaml` and are installed only when the task needs them.
 
 ## Deployment
 
 `master` is source and `gh-pages` is generated publication state. The canonical publisher is `.github/workflows/deploy.yml`; ordinary source CI does not publish.
 
-Manual publication requires the full 40-character `master` commit SHA. The workflow checks that exact SHA, runs install, high-severity audit, repository checks, Node tests and the production build, then publishes only generated output plus `.nojekyll` and `source-sha.txt`. It preserves `gh-pages` history and never force-pushes publication state.
+Manual publication requires the full 40-character `master` commit SHA. The workflow validates that exact SHA, runs install, security audit, repository checks, Node tests and production build, then publishes only generated output plus `.nojekyll` and `source-sha.txt`. Publication state preserves history.
 
-After publication, the workflow waits for the public `source-sha.txt` to match the selected source commit, verifies every generated public file is reachable, then uses headless Chrome to require both Arc and Spiral to reach `data-gallery-state="ready"` on the public Pages URL.
+After publication, the workflow waits for public `source-sha.txt` convergence, verifies every generated public file, then uses headless Chrome to require Arc and Spiral to reach `data-gallery-state="ready"`.
 
-The publication path has been proven end-to-end. Deployment run `34956827340` successfully published source `90e863a00fa754a09f7b462a3eff5e33ab5afcc4` and passed source selection, install/audit/check/tests/build, public marker convergence, generated-asset verification and Arc/Spiral browser readiness. Issue #4 is closed.
-
-See [`docs/deployment.md`](docs/deployment.md) for the release procedure and evidence boundary. A green source CI run alone is not proof that the public preview has been updated.
+The publication path has already been proven end-to-end. See [`docs/deployment.md`](docs/deployment.md) for the release procedure and evidence boundary.
 
 ## Next-stage priorities
 
-1. Treat the current Arc/Spiral Vanilla contract as the stable baseline; `maxDpr` remains opt-in and the two-surface preview does not need variant tabs merely for production-site parity.
-2. Treat additional Horizontal/Diagonal/Showcase/Masonry variants as future features that must justify their own portable contract and visual evidence, not as unfinished cleanup.
-3. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter and no renderer/math drift.
-4. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.
-5. Add screenshot/pixel visual-regression infrastructure only when a concrete visual contract or future variant needs it.
-
-See [`docs/audits/2026-09-15-final-reconciliation.md`](docs/audits/2026-09-15-final-reconciliation.md) for the closure record of the deep Editorial/runtime reconciliation pass.
+1. Preserve the current Arc/Spiral public contract while making the TypeScript implementation canonical and keeping the `.js` compatibility entries stable.
+2. Complete #6 only after strict typecheck, Node behavioral tests, production build and browser/public readiness remain green with no renderer/default drift.
+3. Complete #7 as a React adapter over the same typed core. React must remain a peer/adapter concern and must not leak into core/Vanilla runtime dependencies.
+4. Treat Horizontal/Diagonal/Showcase/Masonry as future features, not unfinished migration work.
+5. Add screenshot/pixel visual-regression infrastructure only when a concrete visual contract or future variant justifies it.

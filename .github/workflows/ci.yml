@@ -32,6 +32,9 @@ jobs:
       - name: Syntax check
         run: npm run check
 
+      - name: Typecheck
+        run: npm run typecheck
+
       - name: Lifecycle tests
         run: npm test
 

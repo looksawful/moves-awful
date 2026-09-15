@@ -1,12 +1,12 @@
 export const CANVAS_VARIANTS = Object.freeze([
   {
     name: "Arc",
-    moduleUrl: new URL("../../canvas-animations/arc.js", import.meta.url).href,
+    moduleUrl: new URL("../../canvas-animations/arc.ts", import.meta.url).href,
     mountName: "mountArc",
   },
   {
     name: "Spiral",
-    moduleUrl: new URL("../../canvas-animations/spiral.js", import.meta.url).href,
+    moduleUrl: new URL("../../canvas-animations/spiral.ts", import.meta.url).href,
     mountName: "mountSpiral",
   },
 ]);

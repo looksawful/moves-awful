@@ -1,0 +1,493 @@
+import type {
+  ArcMountOptions,
+  ArcRendererSettings,
+  CanvasAnimationOptions,
+  GalleryItem,
+  LoadedItem,
+  MountDisposer,
+  SourceItem,
+} from "./core/types.ts";
+
+const ARC_KEY_PREFIX = "arc:";
+const pendingMounts = new Map<string, symbol>();
+const activeAnimations = new Map<string, MountDisposer>();
+const imageCache = new Map<string, Promise<HTMLImageElement>>();
+
+const arcItems: SourceItem[] = [
+  { imageUrl: new URL("./assets/arc/70s.webp", import.meta.url).href, title: "70's" },
+  { imageUrl: new URL("./assets/arc/80s.webp", import.meta.url).href, title: "80's" },
+  { imageUrl: new URL("./assets/arc/90s.webp", import.meta.url).href, title: "90's" },
+  { imageUrl: new URL("./assets/arc/afro-house.webp", import.meta.url).href, title: "Afro House" },
+  { imageUrl: new URL("./assets/arc/ai.webp", import.meta.url).href, title: "AI" },
+  { imageUrl: new URL("./assets/arc/amapiano.webp", import.meta.url).href, title: "Amapiano" },
+  { imageUrl: new URL("./assets/arc/apple-music.webp", import.meta.url).href, title: "Apple Music" },
+  { imageUrl: new URL("./assets/arc/bass-house.webp", import.meta.url).href, title: "Bass House" },
+  { imageUrl: new URL("./assets/arc/billboard.webp", import.meta.url).href, title: "Billboard" },
+  { imageUrl: new URL("./assets/arc/blaash.webp", import.meta.url).href, title: "BLAASH" },
+  { imageUrl: new URL("./assets/arc/drum-and-bass.webp", import.meta.url).href, title: "Drum & Bass" },
+  { imageUrl: new URL("./assets/arc/dubstep.webp", import.meta.url).href, title: "Dubstep" },
+  { imageUrl: new URL("./assets/arc/khity.webp", import.meta.url).href, title: "Хиты" },
+  { imageUrl: new URL("./assets/arc/luchshie-treki-mesyatsa.webp", import.meta.url).href, title: "Лучшие треки месяца" },
+  { imageUrl: new URL("./assets/arc/mages.webp", import.meta.url).href, title: "Mages" },
+  { imageUrl: new URL("./assets/arc/memy-i-prikoly.webp", import.meta.url).href, title: "Мемы и приколы" },
+  { imageUrl: new URL("./assets/arc/mirovye-novinki.webp", import.meta.url).href, title: "Мировые новинки" },
+  { imageUrl: new URL("./assets/arc/moombahton.webp", import.meta.url).href, title: "Moombahton" },
+  { imageUrl: new URL("./assets/arc/novaya-volna.webp", import.meta.url).href, title: "Новая волна" },
+  { imageUrl: new URL("./assets/arc/organic-and-melodic-house.webp", import.meta.url).href, title: "Organic & Melodic House" },
+  { imageUrl: new URL("./assets/arc/r-and-b-classic.webp", import.meta.url).href, title: "R&B Classic" },
+  { imageUrl: new URL("./assets/arc/rave.webp", import.meta.url).href, title: "Rave" },
+  { imageUrl: new URL("./assets/arc/reels-top.webp", import.meta.url).href, title: "Reels Top" },
+  { imageUrl: new URL("./assets/arc/rock-hits.webp", import.meta.url).href, title: "Rock Hits" },
+  { imageUrl: new URL("./assets/arc/slap-house.webp", import.meta.url).href, title: "Slap House" },
+  { imageUrl: new URL("./assets/arc/spotify.webp", import.meta.url).href, title: "Spotify" },
+  { imageUrl: new URL("./assets/arc/styled.webp", import.meta.url).href, title: "Styled" },
+  { imageUrl: new URL("./assets/arc/tantsevalnye-remiksy.webp", import.meta.url).href, title: "Танцевальные ремиксы" },
+  { imageUrl: new URL("./assets/arc/tiktok-top.webp", import.meta.url).href, title: "TikTok Top" },
+  { imageUrl: new URL("./assets/arc/tranzhishny.webp", import.meta.url).href, title: "Транзишны" },
+  { imageUrl: new URL("./assets/arc/trap.webp", import.meta.url).href, title: "Trap" },
+  { imageUrl: new URL("./assets/arc/uk-bass.webp", import.meta.url).href, title: "UK Bass" },
+  { imageUrl: new URL("./assets/arc/uk-garage.webp", import.meta.url).href, title: "UK Garage" },
+  { imageUrl: new URL("./assets/arc/zvuki-dlya-skretcha.webp", import.meta.url).href, title: "Звуки для скрэтча" },
+];
+
+const normalizeItems = (items: readonly GalleryItem[]): SourceItem[] =>
+  items
+    .filter((item) => Boolean(item?.src))
+    .map((item) => ({
+      imageUrl: String(item.src),
+      title: item.title == null ? "" : String(item.title),
+    }));
+
+const config: ArcRendererSettings = {
+  slots: 10,
+  speed: 0.00005,
+  radiusScale: 0.7,
+  cardBaseScale: 0.17,
+  cardMinScale: 0.25,
+  cardMaxBonus: 1.3,
+  cardFocusPower: 1.5,
+  titleScale: 0.08,
+  titleOffsetY: 0.62,
+  titleMaxWidth: 1.9,
+  edgeFadeStart: 0.68,
+  edgeFadePower: 6,
+};
+
+const noop: MountDisposer = () => {};
+
+const getAnimationKey = (canvasId: string): string => `${ARC_KEY_PREFIX}${canvasId}`;
+
+const beginMount = (key: string): symbol => {
+  const token = Symbol(key);
+  pendingMounts.set(key, token);
+  disposeCanvasAnimation(key);
+  return token;
+};
+
+const isCurrentMount = (key: string, token: symbol): boolean => pendingMounts.get(key) === token;
+
+const abortMount = (key: string, token: symbol): MountDisposer => {
+  if (isCurrentMount(key, token)) pendingMounts.delete(key);
+  return noop;
+};
+
+const completeMount = (key: string, token: symbol, dispose: MountDisposer): MountDisposer => () => {
+  if (isCurrentMount(key, token)) pendingMounts.delete(key);
+  dispose();
+};
+
+const getDevicePixelRatio = (maxDpr?: number): number => {
+  const deviceDpr = Math.max(1, globalThis.devicePixelRatio || globalThis.window?.devicePixelRatio || 1);
+  if (typeof maxDpr !== "number" || !Number.isFinite(maxDpr) || maxDpr <= 0) return deviceDpr;
+  return Math.min(deviceDpr, Math.max(1, maxDpr));
+};
+
+const resizeCanvasToDisplaySize = (
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  dpr = getDevicePixelRatio(),
+): boolean => {
+  const width = Math.max(1, Math.round((canvas.clientWidth || 0) * dpr));
+  const height = Math.max(1, Math.round((canvas.clientHeight || 0) * dpr));
+  const changed = canvas.width !== width || canvas.height !== height;
+  if (changed) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return changed;
+};
+
+const disposeCanvasAnimation = (key: string): void => {
+  const dispose = activeAnimations.get(key);
+  if (dispose) dispose();
+};
+
+const disposeCanvasAnimationsByPrefix = (prefix: string): void => {
+  [...activeAnimations.keys()].forEach((key) => {
+    if (key.startsWith(prefix)) disposeCanvasAnimation(key);
+  });
+};
+
+const createCanvasAnimation = ({ key, canvas, ctx, renderFrame, maxDpr }: CanvasAnimationOptions): MountDisposer => {
+  disposeCanvasAnimation(key);
+
+  let disposed = false;
+  let frameId: number | undefined;
+  let running = false;
+  let reducedMotion = false;
+  let viewportActive = typeof globalThis.IntersectionObserver !== "function";
+
+  const doc = globalThis.document;
+  const win = globalThis.window;
+  const motionQuery = win?.matchMedia?.("(prefers-reduced-motion: reduce)");
+
+  const render = (time = 0): void => {
+    resizeCanvasToDisplaySize(canvas, ctx, getDevicePixelRatio(maxDpr));
+    renderFrame({ canvas, ctx, time, width: canvas.clientWidth || 0, height: canvas.clientHeight || 0, reducedMotion });
+  };
+
+  const resize = (): void => {
+    const changed = resizeCanvasToDisplaySize(canvas, ctx, getDevicePixelRatio(maxDpr));
+    if (changed && reducedMotion && viewportActive && !doc?.hidden && !disposed) {
+      renderFrame({ canvas, ctx, time: 0, width: canvas.clientWidth || 0, height: canvas.clientHeight || 0, reducedMotion });
+    }
+  };
+
+  const frame = (time = 0): void => {
+    if (disposed || !running) return;
+    render(time);
+    frameId = globalThis.requestAnimationFrame(frame);
+  };
+
+  const start = (): void => {
+    if (disposed || running || typeof globalThis.requestAnimationFrame !== "function") return;
+    running = true;
+    frameId = globalThis.requestAnimationFrame(frame);
+  };
+
+  const stop = (): void => {
+    running = false;
+    if (frameId !== undefined) {
+      globalThis.cancelAnimationFrame?.(frameId);
+      frameId = undefined;
+    }
+  };
+
+  const syncActivity = (): void => {
+    if (disposed || doc?.hidden || !viewportActive) {
+      stop();
+      return;
+    }
+    if (reducedMotion) {
+      stop();
+      render(0);
+      return;
+    }
+    start();
+  };
+
+  const handleVisibilityChange = (): void => syncActivity();
+  const handleMotionChange = (): void => {
+    reducedMotion = Boolean(motionQuery?.matches);
+    syncActivity();
+  };
+
+  const resizeObserver = globalThis.ResizeObserver ? new globalThis.ResizeObserver(resize) : null;
+  const viewportObserver = globalThis.IntersectionObserver
+    ? new globalThis.IntersectionObserver(
+        ([entry]) => {
+          viewportActive = Boolean(entry?.isIntersecting);
+          syncActivity();
+        },
+        { rootMargin: "50% 0px", threshold: 0 },
+      )
+    : null;
+
+  reducedMotion = Boolean(motionQuery?.matches);
+  resize();
+  resizeObserver?.observe(canvas);
+  viewportObserver?.observe(canvas);
+  win?.addEventListener?.("resize", resize);
+  doc?.addEventListener?.("visibilitychange", handleVisibilityChange);
+
+  if (motionQuery?.addEventListener) motionQuery.addEventListener("change", handleMotionChange);
+  else motionQuery?.addListener?.(handleMotionChange);
+
+  const dispose: MountDisposer = () => {
+    if (disposed) return;
+    disposed = true;
+    stop();
+    resizeObserver?.disconnect();
+    viewportObserver?.disconnect();
+    win?.removeEventListener?.("resize", resize);
+    doc?.removeEventListener?.("visibilitychange", handleVisibilityChange);
+    if (motionQuery?.removeEventListener) motionQuery.removeEventListener("change", handleMotionChange);
+    else motionQuery?.removeListener?.(handleMotionChange);
+    if (activeAnimations.get(key) === dispose) activeAnimations.delete(key);
+  };
+
+  activeAnimations.set(key, dispose);
+  syncActivity();
+  return dispose;
+};
+
+const loadImage = (imageUrl: string): Promise<HTMLImageElement> => {
+  if (!imageUrl) return Promise.reject(new Error("Cannot load an empty image URL."));
+  const cachedImage = imageCache.get(imageUrl);
+  if (cachedImage) return cachedImage;
+
+  const request = new Promise<HTMLImageElement>((resolve, reject) => {
+    const ImageConstructor = globalThis.Image;
+    if (!ImageConstructor) {
+      reject(new Error("Image constructor is not available in this environment."));
+      return;
+    }
+    const image = new ImageConstructor();
+    image.decoding = "async";
+    image.onload = async () => {
+      try {
+        await image.decode?.();
+      } catch {
+        // Cached or animated images can still be drawable after decode rejection.
+      }
+      resolve(image);
+    };
+    image.onerror = () => reject(new Error(`Failed to load image: ${imageUrl}`));
+    image.src = imageUrl;
+  }).catch((error: unknown) => {
+    imageCache.delete(imageUrl);
+    throw error;
+  });
+
+  imageCache.set(imageUrl, request);
+  return request;
+};
+
+const loadImages = async (items: readonly SourceItem[]): Promise<LoadedItem[]> =>
+  Promise.all(
+    items.map(async (item) => {
+      try {
+        return { ...item, imageElement: await loadImage(item.imageUrl), imageLoadError: null };
+      } catch (error: unknown) {
+        return { ...item, imageElement: null, imageLoadError: error };
+      }
+    }),
+  );
+
+const roundedRect = (ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void => {
+  if (ctx.roundRect) {
+    ctx.roundRect(x, y, width, height, radius);
+    return;
+  }
+  const r = Math.min(radius, width * 0.5, height * 0.5);
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+};
+
+const drawCoverPlaceholder = (ctx: CanvasRenderingContext2D, x: number, y: number, size: number, radius = size * 0.1): void => {
+  ctx.save();
+  ctx.beginPath();
+  roundedRect(ctx, x, y, size, size, radius);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.08)";
+  ctx.fill();
+  ctx.restore();
+};
+
+const drawRoundedCover = (
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement | null,
+  x: number,
+  y: number,
+  size: number,
+  radius = size * 0.1,
+): void => {
+  if (!image) {
+    drawCoverPlaceholder(ctx, x, y, size, radius);
+    return;
+  }
+  const aspect = image.width / image.height;
+  const sourceWidth = aspect > 1 ? image.height : image.width;
+  const sourceHeight = sourceWidth;
+  const sourceX = (image.width - sourceWidth) * 0.5;
+  const sourceY = (image.height - sourceHeight) * 0.5;
+  ctx.save();
+  ctx.beginPath();
+  roundedRect(ctx, x, y, size, size, radius);
+  ctx.clip();
+  ctx.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, x, y, size, size);
+  ctx.restore();
+};
+
+interface WrappedTextOptions {
+  ctx: CanvasRenderingContext2D;
+  text: string;
+  x?: number;
+  y: number;
+  maxWidth: number;
+  lineHeight: number;
+  maxLines?: number;
+}
+
+const drawWrappedText = ({ ctx, text, x = 0, y, maxWidth, lineHeight, maxLines = 2 }: WrappedTextOptions): void => {
+  if (!text) return;
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+
+  words.forEach((word) => {
+    const nextLine = line ? `${line} ${word}` : word;
+    if (ctx.measureText(nextLine).width <= maxWidth || !line) {
+      line = nextLine;
+      return;
+    }
+    lines.push(line);
+    line = word;
+  });
+
+  if (line) lines.push(line);
+  const visibleLines = lines.slice(0, maxLines);
+  if (lines.length > visibleLines.length && visibleLines.length > 0) {
+    const lastIndex = visibleLines.length - 1;
+    visibleLines[lastIndex] = `${visibleLines[lastIndex].replace(/\s+$/, "")}...`;
+  }
+  visibleLines.forEach((visibleLine, index) => {
+    ctx.fillText(visibleLine, x, y + index * lineHeight, maxWidth);
+  });
+};
+
+interface TitleStyle {
+  fontFamily: string;
+  fontWeight: string;
+  color: string;
+}
+
+const getTitleStyle = (canvas: HTMLCanvasElement): TitleStyle => {
+  const styles = globalThis.getComputedStyle?.(canvas);
+  return {
+    fontFamily: styles?.getPropertyValue("--arc-title-font-family").trim() || `"Inter Variable", "Inter", sans-serif`,
+    fontWeight: styles?.getPropertyValue("--arc-title-font-weight").trim() || "500",
+    color: styles?.getPropertyValue("--arc-title-color").trim() || "rgba(255, 255, 255, 1)",
+  };
+};
+
+const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+interface ArcRenderOptions {
+  ctx: CanvasRenderingContext2D;
+  items: LoadedItem[];
+  titleStyle: TitleStyle;
+  time: number;
+  width: number;
+  height: number;
+  reducedMotion: boolean;
+}
+
+const renderArc = ({ ctx, items, titleStyle, time, width, height, reducedMotion }: ArcRenderOptions): void => {
+  if (!width || !height || !items.length) return;
+  const centerX = width * 0.5;
+  const centerY = height;
+  const minSide = Math.min(width, height);
+  const phase = reducedMotion ? 0 : time * config.speed;
+  const arcRadius = minSide * config.radiusScale;
+  const cardBaseSize = minSide * config.cardBaseScale;
+
+  ctx.clearRect(0, 0, width, height);
+
+  for (let i = 0; i < config.slots; i += 1) {
+    const raw = i / config.slots + phase;
+    const t = raw % 1;
+    const angle = t * Math.PI * 2;
+    const x = centerX + Math.cos(angle) * arcRadius;
+    const y = centerY + Math.sin(angle) * arcRadius;
+    const item = items[(i + Math.floor(raw)) % items.length];
+    const topZone = Math.max(0, Math.cos(angle - Math.PI * 1.5));
+    const focus = Math.pow(topZone, config.cardFocusPower);
+    const size = cardBaseSize * (config.cardMinScale + focus * config.cardMaxBonus);
+    const edge = Math.abs(x - centerX) / centerX;
+    const alpha = clamp01(1 - (edge - config.edgeFadeStart) * config.edgeFadePower);
+
+    ctx.globalAlpha = alpha;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle + Math.PI / 2);
+    drawRoundedCover(ctx, item.imageElement, -size * 0.5, -size * 0.5, size);
+
+    const fontSize = size * config.titleScale;
+    ctx.font = `${titleStyle.fontWeight} ${fontSize}px ${titleStyle.fontFamily}`;
+    ctx.fillStyle = titleStyle.color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    drawWrappedText({
+      ctx,
+      text: item.title,
+      y: size * config.titleOffsetY,
+      maxWidth: size * config.titleMaxWidth,
+      lineHeight: Math.max(fontSize * 1.12, 7),
+      maxLines: 2,
+    });
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
+};
+
+export const mountArc = async (canvasId = "arc-container", options: ArcMountOptions = {}): Promise<MountDisposer> => {
+  const key = getAnimationKey(canvasId);
+  const mountToken = beginMount(key);
+  const canvas = globalThis.document?.getElementById(canvasId) as HTMLCanvasElement | null | undefined;
+
+  if (!canvas) {
+    console.error(`Canvas with id "${canvasId}" not found`);
+    return abortMount(key, mountToken);
+  }
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    console.error(`Failed to get 2d context from canvas "${canvasId}"`);
+    return abortMount(key, mountToken);
+  }
+
+  canvas.dataset.galleryState = "loading";
+  const titleStyle = getTitleStyle(canvas);
+  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;
+  const items = await loadImages(sourceItems);
+
+  if (!isCurrentMount(key, mountToken)) return noop;
+
+  const hasRenderableItems = items.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableItems ? "ready" : "error";
+  if (!hasRenderableItems) {
+    pendingMounts.delete(key);
+    return noop;
+  }
+
+  const dispose = createCanvasAnimation({
+    key,
+    canvas,
+    ctx,
+    maxDpr: options.maxDpr,
+    renderFrame: ({ time, width, height, reducedMotion }) =>
+      renderArc({ ctx, items, titleStyle, time, width, height, reducedMotion }),
+  });
+
+  return completeMount(key, mountToken, dispose);
+};
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    pendingMounts.clear();
+    disposeCanvasAnimationsByPrefix(ARC_KEY_PREFIX);
+  });
+}

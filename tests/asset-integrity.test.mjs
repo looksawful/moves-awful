@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 const modules = [
-  "canvas-animations/arc.js",
-  "canvas-animations/spiral.js",
+  "canvas-animations/arc.ts",
+  "canvas-animations/spiral.ts",
 ];
 
 const localAssetPattern = /new URL\(["'](\.\/assets\/[^"']+)["'],\s*import\.meta\.url\)/g;

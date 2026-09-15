@@ -36,6 +36,29 @@ for (const variant of CANVAS_VARIANTS) {
     }
   });
 
+  test(`${variant.name}: onload reaches ready even when image.decode never settles`, async () => {
+    const env = installEnvironment();
+    try {
+      globalThis.Image.prototype.decode = () => new Promise(() => {});
+      const module = await importFresh(variant.moduleUrl);
+      const mounting = module[variant.mountName](env.canvas.id, {
+        items: [{ src: `https://example.test/${variant.name.toLowerCase()}-decode-stalls.webp`, title: "Decode stalls" }],
+      });
+
+      const result = await Promise.race([
+        mounting.then((dispose) => ({ kind: "mounted", dispose })),
+        new Promise((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 50)),
+      ]);
+
+      assert.equal(result.kind, "mounted");
+      assert.equal(env.canvas.dataset.galleryState, "ready");
+      assert.equal(env.pendingRafCount, 1);
+      result.dispose();
+    } finally {
+      env.restore();
+    }
+  });
+
   test(`${variant.name}: all image failures expose error state without starting RAF`, async () => {
     const env = installEnvironment({ failImages: true });
     try {

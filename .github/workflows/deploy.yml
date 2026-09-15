@@ -169,7 +169,7 @@ jobs:
 
           for attempt in $(seq 1 5); do
             STDERR_FILE="$RUNNER_TEMP/moves-awful-chrome-${attempt}.stderr"
-            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=10000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>"$STDERR_FILE" || true)"
+            DOM="$($CHROME_BIN --headless --disable-gpu --no-sandbox --virtual-time-budget=30000 --dump-dom "${PAGE_URL}&attempt=${attempt}" 2>"$STDERR_FILE" || true)"
             ARC_READY=0
             SPIRAL_READY=0
 

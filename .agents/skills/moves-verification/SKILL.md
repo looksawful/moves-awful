@@ -1,57 +1,59 @@
 ---
 name: moves-verification
-description: Use before claiming MOVES AWFUL changes are ready, especially for Canvas runtime, assets, build or deployment-facing edits.
+description: Use before claiming MOVES AWFUL changes are ready, especially for Canvas runtime, TypeScript, assets, build or deployment-facing edits.
 ---
 
 # MOVES AWFUL verification
 
 Use evidence proportional to the change. Keep the project small, but do not call source inspection a test and do not call Node lifecycle evidence pixel-level browser proof.
 
-## Fast source gate
-
-For JavaScript, test-source or workflow changes:
+## Source gate
 
 ```bash
 npm run check
+npm run typecheck
 ```
 
-This syntax-checks both Canvas modules, repository helper scripts and all `.mjs` sources under `tests/` recursively, including `tests/helpers/`. It also runs the workflow-policy checker against checked-in `.github/workflows/*.yml` / `*.yaml` files.
+`npm run check` syntax-checks the JavaScript compatibility entries, repository helper scripts and test sources, and validates checked-in GitHub Actions workflows against the repository workflow policy.
 
-Ordinary verification workflows must remain read-only: no `*: write`, no `permissions: write-all`, and no `git push`. Purpose-specific mutation is allowlisted only for exact filenames `deploy.yml`, `deploy.yaml`, `release.yml`, and `release.yaml`; expanding that list is a deliberate policy change that requires tests.
+`npm run typecheck` runs strict TypeScript with `noEmit` over the canonical Canvas implementation and shared type contracts. Do not use `any` or a looser parallel config merely to make the migration green.
+
+Ordinary verification workflows must remain read-only. Purpose-specific mutation is allowlisted only for the repository's explicit deployment/release workflow names.
 
 ## Behavior gate
 
-For Canvas lifecycle, state, activity, accessibility-contract, demo-structure or repository-policy changes:
+For Canvas lifecycle, state, activity, demo-structure, type-architecture or repository-policy changes:
 
 ```bash
 npm test
 ```
 
-The dependency-free Node suite currently covers the modeled contracts for:
+The Node suite covers modeled contracts for:
 
 - normal mount/dispose and idempotent cleanup;
-- remount ownership and stale async mounts;
-- invalid replacement mounts when the Canvas disappears or has no 2D context;
-- visibility and reduced-motion activity;
-- viewport gating;
+- remount ownership and stale asynchronous mounts;
+- invalid replacement mounts;
+- visibility, viewport and reduced-motion activity;
 - caller-provided media items;
 - `loading` / `ready` / `error` state;
-- Arc host-style isolation;
+- `maxDpr` semantics;
+- Arc host-style/font boundary;
 - structural accessibility/responsive requirements of the demo;
-- workflow-policy acceptance/rejection fixtures.
+- bundled asset ownership;
+- workflow/deployment policy;
+- canonical strict TypeScript modules plus stable `.js` compatibility exports.
 
-Canvas suites share fake browser/Canvas plumbing through `tests/helpers/canvas-environment.mjs`, while scenario assertions remain in focused test files. Keep that helper test-only; do not use it as a template for a production runtime abstraction.
-
-These tests exercise controlled substitutes or source fixtures. They prove the represented ownership/state/policy contracts, not actual pixels, layout rendering or browser performance.
+Tests that need fresh renderer module state import the canonical `.ts` modules directly. Compatibility entries are separately constrained to remain thin exports. Do not mistake module-cache behavior in a test wrapper for a production lifecycle regression.
 
 ## Integration gate
 
-For source, asset-path, HTML, CSS, Vite configuration, workflow or release-facing changes run:
+For source, dependency, asset, HTML, CSS, Vite, TypeScript configuration, workflow or release-facing changes run the complete chain:
 
 ```bash
 npm ci
 npm audit --audit-level=high
 npm run check
+npm run typecheck
 npm test
 npm run build
 ```
@@ -63,24 +65,24 @@ A successful Vite build confirms module resolution and production bundling. It d
 Required when rendering, sizing, assets, accessibility, timing or performance changes depend on actual browser behavior:
 
 - Arc and Spiral initialize without console errors;
+- public `.js` compatibility entries drive the canonical TypeScript implementation;
 - visible animations run and offscreen animations stop/resume as intended;
 - images resolve and partial failures fall back without crashing the loop;
 - narrow and desktop preview sizes remain usable;
 - hidden-tab visibility pauses work and returning resumes cleanly;
-- repeated mount/dispose does not leave listeners, observers or RAF loops behind;
 - reduced-motion mode preserves a stable usable presentation;
 - actual Canvas output remains visually correct for the change under review.
 
-If browser execution is unavailable, state that boundary explicitly. Do not replace browser evidence with screenshots from an unrelated build or with source inspection.
+If browser execution is unavailable, state that boundary explicitly.
 
 ## Deployment gate
 
-`master` is source; `gh-pages` is publication state. Do not claim the public preview is updated merely because `master` builds. Verify the publication mechanism and the public preview when deployment is part of the task. A purpose-specific deployment workflow may be write-capable only because its exact filename is explicitly allowed by the repository workflow policy.
+`master` is source; `gh-pages` is publication state. Do not claim the public preview is updated merely because `master` builds. The canonical deployment workflow must identify the exact source SHA and prove public marker/asset convergence plus Arc/Spiral browser readiness.
 
-## Checks not present yet
+## Checks not present
 
-The project currently has no dedicated browser-automation suite, linter or typecheck. Add one only when the relevant roadmap work or a concrete regression justifies it. Never report a nonexistent check as green.
+The project currently has no full screenshot/pixel visual-regression suite or linter. Add one only when a concrete contract justifies it. Never report nonexistent checks as green.
 
 ## Failure handling
 
-Record the exact failing command, relevant error and whether the failure predates the patch. For behavior or repository-policy changes, prefer RED -> GREEN evidence. Fix deterministic cleanup blockers before unrelated feature work, and never suppress a check merely to obtain a green result.
+Record the exact failing command and whether failure is production behavior, migration/tooling behavior or a stale test-harness assumption. Preserve useful TDD RED evidence. Fix deterministic blockers rather than suppressing checks for a cosmetic green result.

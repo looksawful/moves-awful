@@ -1,0 +1,88 @@
+name: public-readiness-diagnostic
+
+on:
+  push:
+    branches:
+      - fix/public-readiness-ts-migration-2026-09-16
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Reproduce readiness against local Vite preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run preview -- --host 127.0.0.1 > "$RUNNER_TEMP/vite-preview.log" 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID" 2>/dev/null || true' EXIT
+
+          URL="http://127.0.0.1:4173/moves-awful/"
+          for attempt in $(seq 1 30); do
+            if curl -fsS -o "$RUNNER_TEMP/local-index.html" "$URL"; then
+              break
+            fi
+            sleep 1
+          done
+
+          echo "=== local index module ==="
+          grep -oE 'src="[^"]+\.js"' "$RUNNER_TEMP/local-index.html" || true
+
+          CHROME_BIN="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [[ -z "$CHROME_BIN" ]]; then
+            echo "No Chrome/Chromium binary is available" >&2
+            exit 1
+          fi
+
+          DOM_FILE="$RUNNER_TEMP/local-dom.html"
+          STDERR_FILE="$RUNNER_TEMP/local-chrome.stderr"
+          NETLOG_FILE="$RUNNER_TEMP/local-netlog.json"
+
+          "$CHROME_BIN" \
+            --headless \
+            --disable-gpu \
+            --no-sandbox \
+            --virtual-time-budget=30000 \
+            --log-net-log="$NETLOG_FILE" \
+            --dump-dom "$URL" \
+            > "$DOM_FILE" 2> "$STDERR_FILE" || true
+
+          echo "=== serialized canvases ==="
+          grep -oE '<canvas[^>]*>' "$DOM_FILE" || true
+
+          echo "=== browser resource errors ==="
+          grep -oE 'ERR_[A-Z_]+' "$STDERR_FILE" | sort -u || true
+
+          echo "=== browser stderr tail ==="
+          tail -n 60 "$STDERR_FILE" || true
+
+          echo "=== vite preview log ==="
+          cat "$RUNNER_TEMP/vite-preview.log" || true
+
+          if grep -Eq '<canvas[^>]*(id="arc"[^>]*data-gallery-state="ready"|data-gallery-state="ready"[^>]*id="arc")' "$DOM_FILE" \
+            && grep -Eq '<canvas[^>]*(id="spiral"[^>]*data-gallery-state="ready"|data-gallery-state="ready"[^>]*id="spiral")' "$DOM_FILE"; then
+            echo "LOCAL_RESULT=ready"
+            exit 0
+          fi
+
+          echo "LOCAL_RESULT=not-ready" >&2
+          exit 1

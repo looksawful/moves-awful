@@ -30,9 +30,9 @@ Each module owns its animation lifecycle and currently provides:
 - `IntersectionObserver` gating so continuous RAF work stops away from the viewport, with a no-observer fallback;
 - explicit disposal and Vite HMR cleanup.
 
-`maxDpr` is opt-in. Omitting it preserves the current device-DPR behavior; a finite positive value caps backing-store DPR while never lowering effective DPR below `1`. Invalid values are ignored. No lower default DPR cap is selected yet because that decision remains browser-evidence-gated under #5.
+`maxDpr` is opt-in. Omitting it preserves the current device-DPR behavior; a finite positive value caps backing-store DPR while never lowering effective DPR below `1`. Invalid values are ignored. The standalone default remains unchanged deliberately: changing it requires a new visual/performance justification rather than parity with the production site by itself.
 
-The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc uses the same Inter / 500 / white fallback previously used by the demo runtime.
+The library does not inject global host-page CSS. Arc label styling can be overridden through `--arc-title-font-family`, `--arc-title-font-weight` and `--arc-title-color` on the Canvas or an ancestor. Without overrides, Arc uses the same Inter / 500 / white fallback previously used by the demo runtime. Arc mount also does not block image startup on host-managed font readiness.
 
 Do not create a second shared runtime only to remove duplicated helpers unless a real third animation or measured maintenance problem justifies that abstraction.
 
@@ -150,13 +150,18 @@ Read `AGENTS.md` before editing. Project-specific skills live in `.agents/skills
 
 Manual publication requires the full 40-character `master` commit SHA. The workflow checks that exact SHA, runs install, high-severity audit, repository checks, Node tests and the production build, then publishes only generated output plus `.nojekyll` and `source-sha.txt`. It preserves `gh-pages` history and never force-pushes publication state.
 
-After publication, the workflow waits for the public `source-sha.txt` to match the selected source commit and uses headless Chrome to require both Arc and Spiral to reach `data-gallery-state="ready"` on the public Pages URL.
+After publication, the workflow waits for the public `source-sha.txt` to match the selected source commit, verifies every generated public file is reachable, then uses headless Chrome to require both Arc and Spiral to reach `data-gallery-state="ready"` on the public Pages URL.
+
+The publication path has been proven end-to-end. Deployment run `34956827340` successfully published source `90e863a00fa754a09f7b462a3eff5e33ab5afcc4` and passed source selection, install/audit/check/tests/build, public marker convergence, generated-asset verification and Arc/Spiral browser readiness. Issue #4 is closed.
 
 See [`docs/deployment.md`](docs/deployment.md) for the release procedure and evidence boundary. A green source CI run alone is not proof that the public preview has been updated.
 
 ## Next-stage priorities
 
-1. Complete the first end-to-end traceable deployment and retain its source-SHA/public-browser evidence.
-2. Continue #5 with real-browser visual evidence and decide additional variants individually instead of treating them as a mandatory batch.
-3. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter.
+1. Treat the current Arc/Spiral Vanilla contract as the stable baseline; `maxDpr` remains opt-in and the two-surface preview does not need variant tabs merely for production-site parity.
+2. Treat additional Horizontal/Diagonal/Showcase/Masonry variants as future features that must justify their own portable contract and visual evidence, not as unfinished cleanup.
+3. Complete #6 against the frozen Vanilla contract: strict TypeScript core with a verified Vanilla adapter and no renderer/math drift.
 4. Complete #7 as a React adapter over the same typed core rather than a second renderer implementation.
+5. Add screenshot/pixel visual-regression infrastructure only when a concrete visual contract or future variant needs it.
+
+See [`docs/audits/2026-09-15-final-reconciliation.md`](docs/audits/2026-09-15-final-reconciliation.md) for the closure record of the deep Editorial/runtime reconciliation pass.

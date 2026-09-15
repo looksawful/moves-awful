@@ -124,7 +124,7 @@ jobs:
               echo "Public marker matches $SOURCE_SHA on attempt $attempt"
               exit 0
             fi
-            sleep 2
+            sleep "$MARKER_RETRY_DELAY_SECONDS"
           done
           echo "Public marker did not converge to $SOURCE_SHA within $((MARKER_MAX_ATTEMPTS * MARKER_RETRY_DELAY_SECONDS)) seconds" >&2
           exit 1

@@ -88,6 +88,13 @@ const getArcElementAnimationKey = (canvas: HTMLCanvasElement): string => {
   return key;
 };
 
+export const disposeArcCanvas = (canvas: HTMLCanvasElement): void => {
+  const key = arcElementKeys.get(canvas);
+  if (!key) return;
+  pendingMounts.delete(key);
+  disposeCanvasAnimation(key);
+};
+
 const beginMount = (key: string): symbol => {
   const token = Symbol(key);
   pendingMounts.set(key, token);

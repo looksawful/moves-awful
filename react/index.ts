@@ -9,8 +9,8 @@ import {
   type MutableRefObject,
 } from "react";
 
-import { mountArcCanvas } from "../canvas-animations/arc.ts";
-import { mountSpiralCanvas } from "../canvas-animations/spiral.ts";
+import { disposeArcCanvas, mountArcCanvas } from "../canvas-animations/arc.ts";
+import { disposeSpiralCanvas, mountSpiralCanvas } from "../canvas-animations/spiral.ts";
 import type { GalleryItem, GalleryVariantOptions, MountDisposer } from "../canvas-animations/core/types.ts";
 
 export type MovesCanvasVariant = GalleryVariantOptions["variant"];
@@ -53,6 +53,7 @@ export const MovesCanvas = forwardRef<HTMLCanvasElement, MovesCanvasProps>(
       let cleaned = false;
       let dispose: MountDisposer = noop;
       const mount = variant === "arc" ? mountArcCanvas : mountSpiralCanvas;
+      const disposeCanvas = variant === "arc" ? disposeArcCanvas : disposeSpiralCanvas;
 
       void mount(canvas, { items, maxDpr }).then((nextDispose) => {
         if (cleaned) {
@@ -65,6 +66,7 @@ export const MovesCanvas = forwardRef<HTMLCanvasElement, MovesCanvasProps>(
 
       return () => {
         cleaned = true;
+        disposeCanvas(canvas);
         dispose();
       };
     }, [variant, items, maxDpr]);

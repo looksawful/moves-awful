@@ -59,6 +59,13 @@ const getSpiralElementAnimationKey = (canvas: HTMLCanvasElement): string => {
   return key;
 };
 
+export const disposeSpiralCanvas = (canvas: HTMLCanvasElement): void => {
+  const key = spiralElementKeys.get(canvas);
+  if (!key) return;
+  pendingMounts.delete(key);
+  disposeCanvasAnimation(key);
+};
+
 const beginMount = (key: string): symbol => {
   const token = Symbol(key);
   pendingMounts.set(key, token);

@@ -32,96 +32,69 @@ jobs:
               text = p.read_text()
               count = text.count(old)
               if count != 1:
-                  raise SystemExit(f"{path}: expected one marker, found {count}")
+                  raise SystemExit(f"{path}: expected one marker, found {count}: {old!r}")
               p.write_text(text.replace(old, new, 1))
 
-          replace_once(
-              "canvas-animations/arc.ts",
-              '''const getArcElementAnimationKey = (canvas: HTMLCanvasElement): string => {
-            const existing = arcElementKeys.get(canvas);
-            if (existing) return existing;
-            const key = `${ARC_KEY_PREFIX}element-${nextArcElementKey++}`;
-            arcElementKeys.set(canvas, key);
-            return key;
-          };
-          ''',
-              '''const getArcElementAnimationKey = (canvas: HTMLCanvasElement): string => {
-            const existing = arcElementKeys.get(canvas);
-            if (existing) return existing;
-            const key = `${ARC_KEY_PREFIX}element-${nextArcElementKey++}`;
-            arcElementKeys.set(canvas, key);
-            return key;
-          };
+          arc = Path("canvas-animations/arc.ts")
+          text = arc.read_text()
+          marker = "const beginMount = (key: string): symbol => {"
+          if "export const disposeArcCanvas" not in text:
+              insert = (
+                  "export const disposeArcCanvas = (canvas: HTMLCanvasElement): void => {\n"
+                  "  const key = arcElementKeys.get(canvas);\n"
+                  "  if (!key) return;\n"
+                  "  pendingMounts.delete(key);\n"
+                  "  disposeCanvasAnimation(key);\n"
+                  "};\n\n"
+              )
+              if text.count(marker) != 1:
+                  raise SystemExit("arc.ts: beginMount marker missing or ambiguous")
+              arc.write_text(text.replace(marker, insert + marker, 1))
 
-          export const disposeArcCanvas = (canvas: HTMLCanvasElement): void => {
-            const key = arcElementKeys.get(canvas);
-            if (!key) return;
-            pendingMounts.delete(key);
-            disposeCanvasAnimation(key);
-          };
-          ''',
+          spiral = Path("canvas-animations/spiral.ts")
+          text = spiral.read_text()
+          marker = "const beginMount = (key: string): symbol => {"
+          if "export const disposeSpiralCanvas" not in text:
+              insert = (
+                  "export const disposeSpiralCanvas = (canvas: HTMLCanvasElement): void => {\n"
+                  "  const key = spiralElementKeys.get(canvas);\n"
+                  "  if (!key) return;\n"
+                  "  pendingMounts.delete(key);\n"
+                  "  disposeCanvasAnimation(key);\n"
+                  "};\n\n"
+              )
+              if text.count(marker) != 1:
+                  raise SystemExit("spiral.ts: beginMount marker missing or ambiguous")
+              spiral.write_text(text.replace(marker, insert + marker, 1))
+
+          react = Path("react/index.ts")
+          text = react.read_text()
+          text = text.replace(
+              'import { mountArcCanvas } from "../canvas-animations/arc.ts";',
+              'import { disposeArcCanvas, mountArcCanvas } from "../canvas-animations/arc.ts";',
+              1,
           )
-
-          replace_once(
-              "canvas-animations/spiral.ts",
-              '''const getSpiralElementAnimationKey = (canvas: HTMLCanvasElement): string => {
-            const existing = spiralElementKeys.get(canvas);
-            if (existing) return existing;
-            const key = `${SPIRAL_KEY_PREFIX}element-${nextSpiralElementKey++}`;
-            spiralElementKeys.set(canvas, key);
-            return key;
-          };
-          ''',
-              '''const getSpiralElementAnimationKey = (canvas: HTMLCanvasElement): string => {
-            const existing = spiralElementKeys.get(canvas);
-            if (existing) return existing;
-            const key = `${SPIRAL_KEY_PREFIX}element-${nextSpiralElementKey++}`;
-            spiralElementKeys.set(canvas, key);
-            return key;
-          };
-
-          export const disposeSpiralCanvas = (canvas: HTMLCanvasElement): void => {
-            const key = spiralElementKeys.get(canvas);
-            if (!key) return;
-            pendingMounts.delete(key);
-            disposeCanvasAnimation(key);
-          };
-          ''',
+          text = text.replace(
+              'import { mountSpiralCanvas } from "../canvas-animations/spiral.ts";',
+              'import { disposeSpiralCanvas, mountSpiralCanvas } from "../canvas-animations/spiral.ts";',
+              1,
           )
-
-          replace_once(
-              "react/index.ts",
-              'import { mountArcCanvas } from "../canvas-animations/arc.ts";\nimport { mountSpiralCanvas } from "../canvas-animations/spiral.ts";',
-              'import { disposeArcCanvas, mountArcCanvas } from "../canvas-animations/arc.ts";\nimport { disposeSpiralCanvas, mountSpiralCanvas } from "../canvas-animations/spiral.ts";',
+          old = '      const mount = variant === "arc" ? mountArcCanvas : mountSpiralCanvas;\n'
+          new = (
+              old
+              + '      const disposeCanvas = variant === "arc" ? disposeArcCanvas : disposeSpiralCanvas;\n'
           )
-
-          replace_once(
-              "react/index.ts",
-              '''      const mount = variant === "arc" ? mountArcCanvas : mountSpiralCanvas;
-
-              void mount(canvas, { items, maxDpr }).then((nextDispose) => {
-          ''',
-              '''      const mount = variant === "arc" ? mountArcCanvas : mountSpiralCanvas;
-              const disposeCanvas = variant === "arc" ? disposeArcCanvas : disposeSpiralCanvas;
-
-              void mount(canvas, { items, maxDpr }).then((nextDispose) => {
-          ''',
-          )
-
-          replace_once(
-              "react/index.ts",
-              '''      return () => {
-                cleaned = true;
-                dispose();
-              };
-          ''',
-              '''      return () => {
-                cleaned = true;
-                disposeCanvas(canvas);
-                dispose();
-              };
-          ''',
-          )
+          if "const disposeCanvas = variant ===" not in text:
+              if text.count(old) != 1:
+                  raise SystemExit("react/index.ts: mount selector marker missing or ambiguous")
+              text = text.replace(old, new, 1)
+          old = "        cleaned = true;\n        dispose();"
+          new = "        cleaned = true;\n        disposeCanvas(canvas);\n        dispose();"
+          if "disposeCanvas(canvas);" not in text:
+              if text.count(old) != 1:
+                  raise SystemExit("react/index.ts: cleanup marker missing or ambiguous")
+              text = text.replace(old, new, 1)
+          react.write_text(text)
           PY
       - name: Remove one-shot workflow before repository policy checks
         run: rm .github/workflows/pr37-fix-pending-react-mounts.yml

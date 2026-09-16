@@ -76,8 +76,10 @@ const installReactCanvasEnvironment = ({ delayedImages = false } = {}) => {
   }
 
   let nextRafId = 1;
+  let rafRequestCount = 0;
   const rafCallbacks = new Map();
   const requestAnimationFrame = (callback) => {
+    rafRequestCount += 1;
     const id = nextRafId++;
     rafCallbacks.set(id, callback);
     return id;
@@ -113,6 +115,11 @@ const installReactCanvasEnvironment = ({ delayedImages = false } = {}) => {
   return {
     rootElement: dom.window.document.getElementById("root"),
     get pendingRafCount() { return rafCallbacks.size; },
+    get rafRequestCount() { return rafRequestCount; },
+    settleNextImage() {
+      const settle = pendingImages.shift();
+      settle?.();
+    },
     settleImages() {
       const pending = pendingImages.splice(0);
       pending.forEach((settle) => settle());
@@ -165,6 +172,85 @@ test("StrictMode mount/remount owns one RAF chain and unmount disposes it", asyn
     });
 
     assert.equal(env.pendingRafCount, 0, "unmount must dispose the active Canvas runtime");
+  } finally {
+    env.restore();
+  }
+});
+
+test("unmount during pending image load never activates a stale runtime", async () => {
+  const env = installReactCanvasEnvironment({ delayedImages: true });
+  try {
+    const root = createRoot(env.rootElement);
+
+    await act(async () => {
+      root.render(createElement(MovesCanvas, {
+        variant: "arc",
+        items: [{ src: "https://example.test/pending-arc.webp", title: "Pending" }],
+      }));
+      await settleReactWork();
+    });
+
+    const canvas = env.rootElement.querySelector("canvas");
+    assert.equal(canvas?.dataset.galleryState, "loading");
+    assert.equal(env.rafRequestCount, 0);
+
+    await act(async () => {
+      root.unmount();
+      await settleReactWork();
+    });
+
+    env.settleImages();
+    await settleReactWork();
+
+    assert.equal(env.rafRequestCount, 0, "disposed pending mount must never request RAF after images settle");
+    assert.equal(env.pendingRafCount, 0);
+  } finally {
+    env.restore();
+  }
+});
+
+test("variant replacement aborts the previous pending runtime before it can activate", async () => {
+  const env = installReactCanvasEnvironment({ delayedImages: true });
+  try {
+    const root = createRoot(env.rootElement);
+
+    await act(async () => {
+      root.render(createElement(MovesCanvas, {
+        variant: "arc",
+        items: [{ src: "https://example.test/old-arc.webp", title: "Old" }],
+      }));
+      await settleReactWork();
+    });
+
+    await act(async () => {
+      root.render(createElement(MovesCanvas, {
+        variant: "spiral",
+        items: [{ src: "https://example.test/new-spiral.webp", title: "New" }],
+      }));
+      await settleReactWork();
+    });
+
+    env.settleNextImage();
+    await settleReactWork();
+    assert.equal(
+      env.rafRequestCount,
+      0,
+      "old Arc completion must not activate after the React variant was replaced",
+    );
+
+    env.settleNextImage();
+    await settleReactWork();
+
+    const canvas = env.rootElement.querySelector("canvas");
+    assert.equal(canvas?.dataset.galleryState, "ready");
+    assert.equal(env.pendingRafCount, 1);
+    assert.equal(env.rafRequestCount, 1);
+
+    await act(async () => {
+      root.unmount();
+      await settleReactWork();
+    });
+    assert.equal(env.pendingRafCount, 0);
   } finally {
     env.restore();
   }

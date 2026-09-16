@@ -77,6 +77,24 @@ const noop: MountDisposer = () => {};
 
 const getAnimationKey = (canvasId: string): string => `${ARC_KEY_PREFIX}${canvasId}`;
 
+const arcElementKeys = new WeakMap<HTMLCanvasElement, string>();
+let nextArcElementKey = 1;
+
+const getArcElementAnimationKey = (canvas: HTMLCanvasElement): string => {
+  const existing = arcElementKeys.get(canvas);
+  if (existing) return existing;
+  const key = `${ARC_KEY_PREFIX}element-${nextArcElementKey++}`;
+  arcElementKeys.set(canvas, key);
+  return key;
+};
+
+export const disposeArcCanvas = (canvas: HTMLCanvasElement): void => {
+  const key = arcElementKeys.get(canvas);
+  if (!key) return;
+  pendingMounts.delete(key);
+  disposeCanvasAnimation(key);
+};
+
 const beginMount = (key: string): symbol => {
   const token = Symbol(key);
   pendingMounts.set(key, token);
@@ -438,6 +456,45 @@ const renderArc = ({ ctx, items, titleStyle, time, width, height, reducedMotion 
     ctx.restore();
   }
   ctx.globalAlpha = 1;
+};
+
+export const mountArcCanvas = async (
+  canvas: HTMLCanvasElement,
+  options: ArcMountOptions = {},
+): Promise<MountDisposer> => {
+  const key = getArcElementAnimationKey(canvas);
+  const mountToken = beginMount(key);
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    console.error("Failed to get 2d context from canvas element");
+    return abortMount(key, mountToken);
+  }
+
+  canvas.dataset.galleryState = "loading";
+  const titleStyle = getTitleStyle(canvas);
+  const sourceItems = Array.isArray(options.items) ? normalizeItems(options.items) : arcItems;
+  const items = await loadImages(sourceItems);
+
+  if (!isCurrentMount(key, mountToken)) return noop;
+
+  const hasRenderableItems = items.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableItems ? "ready" : "error";
+  if (!hasRenderableItems) {
+    pendingMounts.delete(key);
+    return noop;
+  }
+
+  const dispose = createCanvasAnimation({
+    key,
+    canvas,
+    ctx,
+    maxDpr: options.maxDpr,
+    renderFrame: ({ time, width, height, reducedMotion }) =>
+      renderArc({ ctx, items, titleStyle, time, width, height, reducedMotion }),
+  });
+
+  return completeMount(key, mountToken, dispose);
 };
 
 export const mountArc = async (canvasId = "arc-container", options: ArcMountOptions = {}): Promise<MountDisposer> => {

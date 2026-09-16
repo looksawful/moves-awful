@@ -41,6 +41,9 @@ const installReactCanvasEnvironment = ({ delayedImages = false } = {}) => {
     Object.defineProperty(globalThis, key, { configurable: true, writable: true, value });
   };
 
+  Object.defineProperty(dom.window.document, "hidden", { configurable: true, value: false });
+  Object.defineProperty(dom.window.document, "visibilityState", { configurable: true, value: "visible" });
+
   const ctx = createContext();
   Object.defineProperty(dom.window.HTMLCanvasElement.prototype, "clientWidth", {
     configurable: true,

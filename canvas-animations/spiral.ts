@@ -48,6 +48,17 @@ const noop: MountDisposer = () => {};
 
 const getAnimationKey = (canvasId: string): string => `${SPIRAL_KEY_PREFIX}${canvasId}`;
 
+const spiralElementKeys = new WeakMap<HTMLCanvasElement, string>();
+let nextSpiralElementKey = 1;
+
+const getSpiralElementAnimationKey = (canvas: HTMLCanvasElement): string => {
+  const existing = spiralElementKeys.get(canvas);
+  if (existing) return existing;
+  const key = `${SPIRAL_KEY_PREFIX}element-${nextSpiralElementKey++}`;
+  spiralElementKeys.set(canvas, key);
+  return key;
+};
+
 const beginMount = (key: string): symbol => {
   const token = Symbol(key);
   pendingMounts.set(key, token);
@@ -332,6 +343,46 @@ const renderSpiral = ({ ctx, images, time, width, height, reducedMotion }: Spira
   });
 
   ctx.globalAlpha = 1;
+};
+
+export const mountSpiralCanvas = async (
+  canvas: HTMLCanvasElement,
+  options: SpiralMountOptions = {},
+): Promise<MountDisposer> => {
+  const key = getSpiralElementAnimationKey(canvas);
+  const mountToken = beginMount(key);
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    console.error("Failed to get 2d context from canvas element");
+    return abortMount(key, mountToken);
+  }
+
+  canvas.dataset.galleryState = "loading";
+  const sourceItems: readonly (string | SourceItem)[] = Array.isArray(options.items)
+    ? normalizeItems(options.items)
+    : spiralCoverUrls;
+  const images = await loadCoverImages(sourceItems);
+
+  if (!isCurrentMount(key, mountToken)) return noop;
+
+  const hasRenderableImages = images.some((item) => Boolean(item.imageElement));
+  canvas.dataset.galleryState = hasRenderableImages ? "ready" : "error";
+  if (!hasRenderableImages) {
+    pendingMounts.delete(key);
+    return noop;
+  }
+
+  const dispose = createCanvasAnimation({
+    key,
+    canvas,
+    ctx,
+    maxDpr: options.maxDpr,
+    renderFrame: ({ time, width, height, reducedMotion }) =>
+      renderSpiral({ ctx, images, time, width, height, reducedMotion }),
+  });
+
+  return completeMount(key, mountToken, dispose);
 };
 
 export const mountSpiral = async (

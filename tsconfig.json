@@ -12,5 +12,5 @@
     "types": ["vite/client"],
     "skipLibCheck": true
   },
-  "include": ["canvas-animations/**/*.ts"]
+  "include": ["canvas-animations/**/*.ts", "react/**/*.ts"]
 }

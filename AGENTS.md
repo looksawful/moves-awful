@@ -90,3 +90,17 @@ Current routes:
 - `typescript` — strict TypeScript migration and public type contracts.
 
 Installed vendor copies are environment state, not repository source. Do not commit them, and never let generic vendor guidance override this file or the MOVES-specific skills.
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues are used for this repository. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage vocabulary is configured in `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout. See `docs/agents/domain.md`.

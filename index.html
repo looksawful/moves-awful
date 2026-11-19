@@ -3,20 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Animation check</title>
+    <meta name="description" content="Moves Awful is a small library of Canvas galleries for landing pages. Explore the Arc and Spiral animations." />
+    <title>Moves Awful — Canvas gallery demos</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
+    <header class="page-header">
+      <h1>Moves Awful</h1>
+      <p class="intro">Two Canvas galleries for landing pages. Explore the motion, then use the Vanilla JavaScript entry points in your project.</p>
+      <nav class="project-links" aria-label="Project links">
+        <a href="https://github.com/looksawful/moves-awful">Source code</a>
+        <a href="https://github.com/looksawful/moves-awful/blob/master/docs/public-contract.md">API and usage</a>
+        <a href="https://www.looksawful.ru/work/moves-awful/">Portfolio case</a>
+      </nav>
+    </header>
+
     <main>
       <section aria-labelledby="arc-title">
-        <h2 id="arc-title">Arc</h2>
+        <div class="section-header">
+          <h2 id="arc-title">Arc</h2>
+          <div class="playback">
+            <button class="playback-button" data-playback="arc" type="button" hidden>Pause</button>
+            <span class="playback-status" data-playback-status="arc" role="status">Enable JavaScript to view the animation.</span>
+          </div>
+        </div>
         <div class="animation-cell arc-cell">
           <canvas id="arc" role="img" aria-labelledby="arc-title">Arc</canvas>
         </div>
       </section>
 
       <section aria-labelledby="spiral-title">
-        <h2 id="spiral-title">Spiral</h2>
+        <div class="section-header">
+          <h2 id="spiral-title">Spiral</h2>
+          <div class="playback">
+            <button class="playback-button" data-playback="spiral" type="button" hidden>Pause</button>
+            <span class="playback-status" data-playback-status="spiral" role="status">Enable JavaScript to view the animation.</span>
+          </div>
+        </div>
         <div class="animation-cell spiral-cell">
           <canvas id="spiral" role="img" aria-labelledby="spiral-title">Spiral</canvas>
         </div>
@@ -26,14 +49,26 @@
     <script type="module">
       import { mountArc } from "./canvas-animations/arc.js";
       import { mountSpiral } from "./canvas-animations/spiral.js";
+      import { createDemoPlayback } from "./scripts/demo-playback.mjs";
 
-      const disposers = [mountArc("arc"), mountSpiral("spiral")];
+      const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+      const previews = [
+        { id: "arc", label: "Arc", mount: () => mountArc("arc") },
+        { id: "spiral", label: "Spiral", mount: () => mountSpiral("spiral") },
+      ];
+      const controllers = previews.map(({ id, label, mount }) =>
+        createDemoPlayback({
+          button: document.querySelector(`[data-playback="${id}"]`),
+          status: document.querySelector(`[data-playback-status="${id}"]`),
+          canvas: document.getElementById(id),
+          label,
+          mount,
+          motionQuery,
+        }),
+      );
 
       if (import.meta.hot) {
-        import.meta.hot.dispose(async () => {
-          const mounted = await Promise.all(disposers);
-          mounted.forEach((dispose) => dispose());
-        });
+        import.meta.hot.dispose(() => controllers.forEach((controller) => controller.dispose()));
       }
     </script>
   </body>
